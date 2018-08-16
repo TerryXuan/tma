@@ -1,0 +1,93 @@
+group 'cn.sibat'
+version '1.0-SNAPSHOT'
+
+apply plugin: 'java'
+apply plugin: 'scala'
+apply plugin: 'application'
+/*管理版本用的*/
+apply from: 'dependencies.gradle'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+/*编码*/
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
+}
+
+/*编码*/
+tasks.withType(ScalaCompile) {
+    options.encoding = "UTF-8"
+}
+
+tasks.withType(Javadoc) {
+    options.encoding = 'UTF-8'
+}
+
+javadoc {
+    options.charSet = "UTF-8"
+}
+
+sourceSets {
+    main {
+        scala {
+            srcDirs = ['src/main/scala', 'src/main/java']
+        }
+        java {
+            srcDirs = []
+        }
+    }
+
+    test {
+        scala {
+            srcDirs = ['src/test/scala', 'src/test/java']
+        }
+
+        java {
+            srcDirs = []
+        }
+    }
+}
+
+//生成项目目录
+task "createDirs" << {
+    sourceSets*.scala.srcDirs*.each { it.mkdirs() }
+    sourceSets*.java.srcDirs*.each { it.mkdirs() }
+    sourceSets*.resources.srcDirs*.each { it.mkdirs() }
+}
+
+/*生成源码jar*/
+task sourcesJar(type: Jar, dependsOn: classes) {
+    classifier = 'sources'
+    from sourceSets.main.allSource
+}
+/*生成javadoc的jar*/
+task javadocJar(type: Jar, dependsOn: javadoc) {
+    classifier = 'javadoc'
+    from javadoc.destinationDir
+}
+
+artifacts {
+    archives jar
+    archives sourcesJar
+    archives javadocJar
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    compile "org.apache.spark:spark-core_2.11:$sparkVersion"
+    compile "org.apache.spark:spark-sql_2.11:$sparkVersion"
+    compile "org.apache.spark:spark-hive_2.11:$sparkVersion"
+    compile "org.apache.spark:spark-streaming_2.11:$sparkVersion"
+    compile "org.apache.spark:spark-streaming-kafka-0-8_2.11:$sparkVersion"
+    compile "org.apache.spark:spark-streaming-flume_2.11:$sparkVersion"
+    compile "org.apache.spark:spark-graphx_2.11:$sparkVersion"
+    compile "org.apache.spark:spark-mllib_2.11:$sparkVersion"
+    compile "org.apache.spark:spark-yarn_2.11:$sparkVersion"
+    compile "org.scala-lang:scala-library:$scalaVersion"
+    compile "org.scala-lang:scala-compiler:$scalaVersion"
+    compile "org.scala-lang:scala-reflect:$scalaVersion"
+}

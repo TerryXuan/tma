@@ -1,0 +1,25 @@
+products:
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\DurationDistUtil.scala -> D:\workspace\tma\build\classes\scala\main\cn\sibat\tma\DurationDistUtil$.class
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\DurationDistUtil.scala -> D:\workspace\tma\build\classes\scala\main\cn\sibat\tma\DurationDistUtil.class
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\LocationUtil.scala -> D:\workspace\tma\build\classes\scala\main\cn\sibat\tma\LocationUtil$.class
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\LocationUtil.scala -> D:\workspace\tma\build\classes\scala\main\cn\sibat\tma\LocationUtil.class
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\tmaUDF.scala -> D:\workspace\tma\build\classes\scala\main\cn\sibat\tma\tmaUDF$.class
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\tmaUDF.scala -> D:\workspace\tma\build\classes\scala\main\cn\sibat\tma\tmaUDF.class
+binary dependencies:
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\DurationDistUtil.scala -> C:\Users\lenovo\.gradle\caches\modules-2\files-2.1\org.apache.spark\spark-catalyst_2.11\2.0.1\6ec349826230a736defd5ac69b73a7a78f759f3\spark-catalyst_2.11-2.0.1.jar
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\DurationDistUtil.scala -> C:\Users\lenovo\.gradle\caches\modules-2\files-2.1\org.apache.spark\spark-sql_2.11\2.0.1\51e69073dc56582cb2037d299f7a51d823f69dc9\spark-sql_2.11-2.0.1.jar
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\DurationDistUtil.scala -> C:\Users\lenovo\.gradle\caches\modules-2\files-2.1\org.scala-lang\scala-library\2.11.8\ddd5a8bced249bedd86fb4578a39b9fb71480573\scala-library-2.11.8.jar
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\DurationDistUtil.scala -> D:\Program Files\Java\jdk1.8.0_121\jre\lib\rt.jar
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\LocationUtil.scala -> C:\Users\lenovo\.gradle\caches\modules-2\files-2.1\org.scala-lang\scala-library\2.11.8\ddd5a8bced249bedd86fb4578a39b9fb71480573\scala-library-2.11.8.jar
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\LocationUtil.scala -> D:\Program Files\Java\jdk1.8.0_121\jre\lib\rt.jar
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\tmaUDF.scala -> C:\Users\lenovo\.gradle\caches\modules-2\files-2.1\org.apache.spark\spark-sql_2.11\2.0.1\51e69073dc56582cb2037d299f7a51d823f69dc9\spark-sql_2.11-2.0.1.jar
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\tmaUDF.scala -> D:\Program Files\Java\jdk1.8.0_121\jre\lib\rt.jar
+source dependencies:
+external dependencies:
+class names:
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\DurationDistUtil.scala -> cn.sibat.tma.DurationDistUtil
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\DurationDistUtil.scala -> cn.sibat.tma.DurationDistUtil$
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\LocationUtil.scala -> cn.sibat.tma.LocationUtil
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\LocationUtil.scala -> cn.sibat.tma.LocationUtil$
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\tmaUDF.scala -> cn.sibat.tma.tmaUDF
+   D:\workspace\tma\src\main\scala\cn\sibat\tma\tmaUDF.scala -> cn.sibat.tma.tmaUDF$
