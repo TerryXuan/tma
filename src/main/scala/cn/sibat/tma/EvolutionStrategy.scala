@@ -2,7 +2,7 @@ package cn.sibat.tma
 
 import scala.collection.mutable.ArrayBuffer
 
-class Evolution(cities: Array[CityTMA]) extends Serializable {
+class EvolutionStrategy(cities: Array[CityTMA]) extends Serializable {
   private var population_size = 100
   private val routes: ArrayBuffer[Array[Int]] = new ArrayBuffer[Array[Int]]()
   private var iteration = 10000
@@ -108,16 +108,5 @@ class Evolution(cities: Array[CityTMA]) extends Serializable {
     for (i <- population_size / 2 until population_size) {
       routes += CrossStrategy.shuffle(take.head)
     }
-  }
-}
-
-object Evolution {
-
-  def main(args: Array[String]): Unit = {
-    val parent1 = Array(1, 2, 3, 4, 5, 6, 7, 8, 9)
-    val parent2 = Array(5, 4, 6, 3, 1, 9, 2, 7, 8)
-    CrossStrategy.cross(parent1, parent2)
-    println("p1:" + parent1.mkString(";"))
-    println("p2:" + parent2.mkString(";"))
   }
 }

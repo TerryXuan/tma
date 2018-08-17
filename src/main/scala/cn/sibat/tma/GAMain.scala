@@ -7,7 +7,7 @@ object GAMain {
     val spark = SparkSession.builder().getOrCreate()
     val cities = spark.read.option("header", value = true).csv("").as[CityTMA].collect()
     val data = spark.createDataFrame(Seq((1, 1), (1, 1), (1, 1), (1, 1)))
-      .map(row => new Evolution(cities))
+      .map(row => new EvolutionStrategy(cities))
 
     val global = new BestCityAccumulate()
     data.foreach(e => {
