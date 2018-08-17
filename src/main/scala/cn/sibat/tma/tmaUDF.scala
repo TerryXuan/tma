@@ -8,8 +8,9 @@ import org.apache.spark.sql.functions._
 
 object tmaUDF {
   def main(args: Array[String]): Unit = {
-    val time = "9:02:00 AM"
-    val sdf = new SimpleDateFormat("h:mm:ss")
-    println(sdf.parse(time).getTime)
+    val time = "19:02:00"
+    val sdf = new SimpleDateFormat("H:mm:ss")
+    val h = sdf.parse(time).getTime - 30 * 60 * 1000
+    println(sdf.format(h))
   }
 }

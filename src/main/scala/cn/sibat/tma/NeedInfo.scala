@@ -1,17 +1,14 @@
 package cn.sibat.tma
 
+import java.text.SimpleDateFormat
+
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 
 object NeedInfo {
-
-  def fitness(): Double = {
-
-    0.0
-  }
-
   def main(args: Array[String]): Unit = {
     val spark = SparkSession.builder().master("local[*]").getOrCreate()
+    spark.sparkContext.setLogLevel("ERROR")
     import spark.implicits._
     //VersionNo,BookingCode,BookingDestinationLineNo,BookingPassengerLineNo,PassengerNo,Date,DepAirport,ArrAirport,Direction,Earliestdeptime,Latestdeptime,Earliestarrtime,Latestarrtime,VIP,OrderType,TicketType,Standby,Proximityzone,Region,PassengerWeight,BaggageWeight,Locked,ConnFlightCode,Allocatedtoflight,FlightNo,LegNo,Name,Note,SpecialInstructions,PassengerType,Noofseats,Earliestdeptimecontract,Latestdeptimecontract,Earliestarrtimecontract,Latestarrtimecontract,InternalConflict,InternalConflictDescription,Latebooking,Minairtime,Conflictcanbeoverruled,ConflictOverruled,IncludepassengerinIndex,ReleaseConflict,ConnFlightNo,ReleaseConflictDescription,Sell-toCustomerNo,LegId,LateDeparture,LegId2,PaymentType,LegNo(Disembarging),VIPType
     val data = spark.read.option("header", value = true).csv("E:/data/TMA/dataset/pub-Transporation.csv")
@@ -45,47 +42,97 @@ object NeedInfo {
       //departing-> t < 日落时间+1.5小时，t-120min,t-180min
       //DMLED-> 日出时间-日落时间前30分钟
       //MLED-> 15:45-日落时间前30分钟
+      val sdf = new SimpleDateFormat("H:mm:ss")
+      var value = "0-0"
+      val sunsetArrival = "15:15:00"
+      val sunrise = "5:55:00"
+      val sunset = "18:11:00"
+      val sunsetFly = sdf.format(sdf.parse(sunset).getTime - 30 * 60 * 1000)
       if (ConnFlightCode.equals("MLE")) {
-        "6:00 am-8:00 am"
+        value = "6:00:00-8:00:00"
       } else if (ConnFlightCode.equals("DMLE")) {
-        "9:00 am-11:00 am"
+        value = "9:00:00-11:00:00"
       } else if (ConnFlightCode.equals("DMLED")) {
-        "5:55:00AM-(5:55:00AM-30)"
+        value = s"$sunrise-$sunsetFly"
       } else if (ConnFlightCode.equals("MLED")) {
-        "3:45 pm-(6:11:00PM-30)"
+        value = s"15:45:00-$sunsetFly"
       } else if (direction.equals("Arriving")) {
-        "time+45min-time+165min"
+        val timeTrim = time.replaceAll(" ", "").toLowerCase
+        var time24 = timeTrim
+        if (timeTrim.contains("am")) {
+          time24 = timeTrim.replace("am", "")
+        } else if (timeTrim.contains("pm")) {
+          val split = timeTrim.split(":")
+          time24 = (split(0).toInt + 12) + ":" + split(1) + ":" + split(2)
+        }
+        val timestamp24 = sdf.parse(time24).getTime
+        if (timestamp24 > sdf.parse(sunsetArrival).getTime)
+          value = "6:00:00-8:00:00"
+        else {
+          value = s"${sdf.format(timestamp24 + 45 * 60 * 1000)}-${sdf.format(timestamp24 + 165 * 60 * 1000)}"
+        }
       } else if (direction.equals("Departing")) {
-        "(time-120min)-(time-180min)"
+        val timeTrim = time.replaceAll(" ", "").toLowerCase
+        var time24 = timeTrim
+        if (timeTrim.contains("am")) {
+          time24 = timeTrim.replace("am", "")
+        } else if (timeTrim.contains("pm")) {
+          val split = timeTrim.split(":")
+          time24 = (split(0).toInt + 12) + ":" + split(1) + ":" + split(2)
+        }
+        val timestamp24 = sdf.parse(time24).getTime
+        if (timestamp24 > sdf.parse(sunset).getTime)
+          value = s"15:45:00-$sunsetFly"
+        else
+          value = s"${sdf.format(timestamp24 - 180 * 60 * 1000)}-${sdf.format(timestamp24 - 120 * 60 * 1000)}"
       }
-
-      direction
+      value
     })
 
-    val legDF = SLACustomerWise.join(actualPAXAllocation, $"Name" === $"BookedByCustomer").select("DEPAirport", "ARRAirport", "Requirementvalue")
+    val legDF = SLACustomerWise.join(actualPAXAllocation, $"Name" === $"BookedByCustomer").select("DepAirport", "ArrAirport", "Requirementvalue").distinct()
+    val bLegs = spark.sparkContext.broadcast(legDF.collect())
+
+    val withLegs = udf((depAirport: String, arrAirport: String) => {
+      val legs = bLegs.value
+
+      val targetAirport = if (depAirport.equals("MLE")) arrAirport else depAirport
+
+      var value = "2"
+      try {
+        value = legs.filter(row => row.getAs[String]("DepAirport").equals(targetAirport) || row.getAs[String]("ArrAirport").equals(targetAirport)).head.getAs[String]("Requirementvalue")
+      } catch {
+        case e: Exception =>
+      }
+      value.toInt
+    })
 
     //1248
-    val join = filter.join(flyTime, data.col("Direction") === flyTime.col("Direction") && data.col("ConnFlightCode") === flyTime.col("CFNumber"), "left_outer")
-      .withColumn("timeWindow", timeWindow(col("ConnFlightCode"), col("TodaysSTA"), col("Direction"))).join(legDF, Seq("DepAirport", "ArrAirport"))
+    val join = filter.join(flyTime.select("CFNumber", "TodaysSTA"), data.col("ConnFlightCode") === flyTime.col("CFNumber"), "left_outer")
+      .withColumn("timeWindow", timeWindow(col("ConnFlightCode"), col("TodaysSTA"), col("Direction")))
+      .withColumn("legs", withLegs(col("DepAirport"), col("ArrAirport")))
 
-    //基因
+    //基因445*2
     val gene = join.groupByKey(row => row.getAs[String]("BookingCode") + "," + row.getAs[String]("ConnFlightCode")).flatMapGroups((str, it) => {
       val arr = it.toArray
-      val passengerWeight = arr.map(_.getAs[Double]("PassengerWeight")).sum
-      val baggageWeight = arr.map(_.getAs[Double]("baggageWeight")).sum
+      val passengerWeight = arr.map(_.getAs[String]("PassengerWeight").toDouble).sum
+      val baggageWeight = arr.map(_.getAs[String]("BaggageWeight").toDouble).sum
       val row = arr.head
       val direction = row.getAs[String]("Direction")
       val oName = row.getAs[String]("DepAirport")
       val dName = row.getAs[String]("ArrAirport")
-      val legs = row.getAs[Int]("Requirementvalue")
-      val Array(startTime, endTime) = row.getAs[String]("timeWindow").split("-")
-      val o = CityTMA(str, "o", direction, oName, legs, arr.length, passengerWeight, baggageWeight, startTime, endTime)
-      val d = CityTMA(str, "d", direction, dName, legs, -arr.length, passengerWeight, baggageWeight, startTime, endTime)
+      val legs = row.getAs[Int]("legs")
+      val split = row.getAs[String]("timeWindow").split("-")
+      val o = CityTMA(str, "o", direction, oName, legs, arr.length, passengerWeight, baggageWeight, split(0), split(1))
+      val d = CityTMA(str, "d", direction, dName, legs, -arr.length, passengerWeight, baggageWeight, split(0), split(1))
       Array(o, d)
     })
 
+    gene.repartition(1).write.mode("overwrite").option("header", value = true).csv("E:/data/TMA/dataset/gene")
+
+    //println(gene.count())
+
     //染色体
-    val chromosome = gene.rdd.zipWithIndex()
+    //val chromosome = gene.rdd.zipWithIndex()
 
     //闭环得分机制MLE->A->B->C->D->E->MLE
     //BookingCode 相同+ ConnFlightCode 相同 =》团体
