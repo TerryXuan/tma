@@ -5,6 +5,11 @@ import java.text.SimpleDateFormat
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 
+/**
+  * tma 需求提取和组成基因
+  *
+  * @author kong
+  */
 object NeedInfo {
   def main(args: Array[String]): Unit = {
     val spark = SparkSession.builder().master("local[*]").getOrCreate()

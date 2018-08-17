@@ -2,6 +2,11 @@ package cn.sibat.tma
 
 import org.apache.spark.sql.SparkSession
 
+/**
+  * 遗传算法的主程序
+  *
+  * @author kong
+  */
 object GAMain {
   def main(args: Array[String]): Unit = {
     val spark = SparkSession.builder().getOrCreate()

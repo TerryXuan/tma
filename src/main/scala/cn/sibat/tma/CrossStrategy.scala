@@ -6,6 +6,8 @@ import scala.util.Random
 
 /**
   * 遗传算法的交叉策略
+  *
+  * @author kong
   */
 object CrossStrategy {
   /**

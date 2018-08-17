@@ -2,6 +2,11 @@ package cn.sibat.tma
 
 import scala.util.Random
 
+/**
+  * 变异策略
+  *
+  * @author kong
+  */
 object MutateStrategy {
 
   /**

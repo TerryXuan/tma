@@ -7,6 +7,8 @@ import scala.collection.mutable.ArrayBuffer
 /**
   * 自定义全局最优序列
   * 用序列值替换City，优化内存，提高速度
+  *
+  * @author kong
   */
 class BestCityAccumulate extends AccumulatorV2[Array[Int], Array[Int]] {
   private val cities = new ArrayBuffer[Int]()

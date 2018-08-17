@@ -2,9 +2,14 @@ package cn.sibat.tma
 
 import scala.util.Random
 
+/**
+  * q-learning算法针对遗传算法版本
+  *
+  * @author kong
+  */
 object QLearningForGA {
   val n_states = 9 //多少种基因
-  val action: Range.Inclusive = 0 to 8 //基因拼接数
+  val action: Range.Inclusive = 0 to 8 //基因下标
   val epsilon = 0.9 //选择行为的概率，0.9代表90%的概率选择学习后的结果，10%的概率选择随机行为
   val learning_rate = 0.001 // 学习率 //bestOne:0.01+1000000 or 0.001+100000
   val gama = 0.9 //状态衰减率
