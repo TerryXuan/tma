@@ -91,22 +91,17 @@ object QLearningForGA {
   /**
     * 更新环境
     *
-    * @param S            单前状态
+    * @param q_table      单前状态
     * @param episode      学习次数
     * @param step_counter 所需成本
     */
-  def update_env(S: Int, episode: Int, step_counter: Int): Unit = {
-    val line = "-," * (n_states - 1)
-    val env_list = line.split(",") ++ Array("T")
-    if (S == -1) {
-      print(s"\rEpisode ${episode + 1}: total_steps = $step_counter")
-      Thread.sleep(1000)
-      print("\r")
-    } else {
-      env_list(S) = "o"
-      print("\r" + env_list.mkString(""))
-      Thread.sleep(300)
-    }
+  def update_env(q_table: Array[Array[Double]], episode: Int, step_counter: Int): Unit = {
+    val bestOne = q_table.clone().map(s => {
+      s.indexOf(s.max)
+    })
+    print(s"\rEpisode ${episode + 1}: total_steps = $step_counter,best one:${bestOne.mkString(",")}")
+    Thread.sleep(500)
+    print("\r")
   }
 
   def resetBestOne(): Unit = {
@@ -151,6 +146,7 @@ object QLearningForGA {
         //update_env(S, epsilon, step_counter + 1)
         step_counter += 1
       }
+      update_env(q_table, epsilon, step_counter)
     }
     q_table
   }
