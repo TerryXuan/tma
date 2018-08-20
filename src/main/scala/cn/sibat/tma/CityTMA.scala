@@ -20,7 +20,7 @@ case class CityTMA(id: String, odType: String, direction: String, name: String, 
 /**
   * 飞机属性
   *
-  * @param code            飞机代码
+  * @param aircraftCode    飞机代码
   * @param startFlyTime    开始飞行时间
   * @param maxWeight       最大载重
   * @param oilWeight       油量重量
@@ -31,15 +31,19 @@ case class CityTMA(id: String, odType: String, direction: String, name: String, 
   * @param baggageWeight   行李重量
   * @param passengerWeight 乘客重量
   */
-case class Aircraft(code: String, startFlyTime: String, maxWeight: Double, oilWeight: Double, maxFlyTime: Int, maxSeats: Int, useSeats: Int, location: String, baggageWeight: Double, passengerWeight: Double)
+case class Aircraft(aircraftCode: String, startFlyTime: String, maxWeight: Double, oilWeight: Double, maxFlyTime: Int, maxSeats: Int, useSeats: Int, location: String, baggageWeight: Double, passengerWeight: Double)
 
 /**
   * 酒店或者机场的信息
   *
-  * @param code     酒店或者机场代码
-  * @param maxStand 最大停留数
-  * @param canOil   是否能加油
-  * @param legs     中转数
-  * @param useStand 使用的机坪
+  * @param airportCode   酒店或者机场代码
+  * @param latitudeDegr  纬度degr
+  * @param latitudeMin   纬度min
+  * @param longitudeDegr 经度degr
+  * @param longitudeMin  经度min
+  * @param maxCapacity   最大停留数
+  * @param canOil        是否能加油
+  * @param legs          中转数
+  * @param useCapacity   使用的机坪
   */
-case class Airport(code: String, maxStand: Int, canOil: Boolean, legs: Int, useStand: Int)
+case class Airport(airportCode: String, latitudeDegr: Int, latitudeMin: Int, longitudeDegr: Int, longitudeMin: Int, maxCapacity: Int, canOil: Boolean, legs: Int, useCapacity: Int)

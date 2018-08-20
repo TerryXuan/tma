@@ -132,10 +132,6 @@ object NeedInfo {
       Array(o, d)
     })
 
-    gene.repartition(1).write.mode("overwrite").option("header", value = true).csv("E:/data/TMA/dataset/gene")
-
-    //println(gene.count())
-
     //染色体
     //val chromosome = gene.rdd.zipWithIndex()
 
