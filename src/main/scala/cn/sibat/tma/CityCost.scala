@@ -121,25 +121,46 @@ object CityCost {
       *
       */
     var cost = 0.0
+    //用来标识d位置错位
+    var temp = false
 
     for (i <- indexs) {
       val city = cities(i)
       if (city.odType.equals("o")) {
-        val first = cities(i)
-        val firstAirport = airport(first.name)
-        val near = aircraft.minBy(t => {
-          val a = airport(t._2.location)
-          calculatingDistance(a.longitudeDegr, a.longitudeMin, a.latitudeDegr, a.latitudeMin, firstAirport.longitudeDegr, firstAirport.longitudeMin, firstAirport.latitudeDegr, firstAirport.latitudeMin)
-        })._2
-        val nearAirport = airport(near.location)
-        val nearDistance = calculatingDistance(nearAirport.longitudeDegr, nearAirport.longitudeMin, nearAirport.latitudeDegr, nearAirport.latitudeMin, firstAirport.longitudeDegr, firstAirport.longitudeMin, firstAirport.latitudeDegr, firstAirport.latitudeMin)
-        val nearTime = calculatingTime(nearDistance)
-        aircraft.update(near.aircraftCode, near.copy(cities = near.cities ++ Array(first)))
-      } else {
-        val existAircraft = aircraft.filter(t=> t._2.cities.exists(c => c.id.equals(city.id)))
-        if (existAircraft.isEmpty){
+        val firstAirport = airport(city.name)
 
+        //过滤不支持该任务的飞机
+        val canUse = aircraft.filter(t => {
+          val st = city.startTime
+          val et = city.endTime
+          if (t._2.cities.isEmpty) {
+            true
+          } else {
+            val t1 = t._2.cities.maxBy(_.startTime)
+            val t2 = t._2.cities.minBy(_.endTime)
+            st <= t1 && t2 >= et && t._2.maxFlyTime > 0
+          }
+        })
+
+        if (canUse.nonEmpty) {
+          val near = canUse.minBy(t => {
+            val a = airport(t._2.location)
+            calculatingDistance(a.longitudeDegr, a.longitudeMin, a.latitudeDegr, a.latitudeMin, firstAirport.longitudeDegr, firstAirport.longitudeMin, firstAirport.latitudeDegr, firstAirport.latitudeMin)
+          })._2
+          val nearAirport = airport(near.location)
+          val nearDistance = calculatingDistance(nearAirport.longitudeDegr, nearAirport.longitudeMin, nearAirport.latitudeDegr, nearAirport.latitudeMin, firstAirport.longitudeDegr, firstAirport.longitudeMin, firstAirport.latitudeDegr, firstAirport.latitudeMin)
+          val nearTime = calculatingTime(nearDistance)
+          aircraft.update(near.aircraftCode, near.copy(cities = near.cities ++ Array(city)))
+        } else {
+          temp = true
         }
+      } else {
+        val existAircraft = aircraft.filter(t => t._2.cities.exists(c => c.id.equals(city.id)))
+        if (existAircraft.nonEmpty) {
+          val head = existAircraft.head
+          aircraft.update(head._1, head._2.copy(cities = head._2.cities ++ Array(city)))
+        } else
+          temp = true
       }
     }
     cost
@@ -152,7 +173,7 @@ object CityCost {
     * @param A 行为
     * @return (下一状态，奖励)
     */
-  def get_env_feedback1(S: CityTMA, A: CityTMA): (CityTMA, Double) = {
+  def get_env_feedback(S: CityTMA, A: CityTMA): (CityTMA, Double) = {
     var S_ = A
     var R = 0.0
     if (S.odType.equals("d")) {
