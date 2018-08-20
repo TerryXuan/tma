@@ -15,23 +15,20 @@ package cn.sibat.tma
   * @param startTime       时间窗开始
   * @param endTime         时间窗结束
   */
-case class CityTMA(id: String, odType: String, direction: String, name: String, legs: Int, seats: Int, passengerWeight: Double, baggageWeight: Double, startTime: String, endTime: String)
+case class CityTMA(id: String, odType: String, direction: String, name: String, legs: Int, seats: Int, passengerWeight: Double, baggageWeight: Double, startTime: String, endTime: String, exit: Int = 0)
 
 /**
   * 飞机属性
   *
-  * @param aircraftCode    飞机代码
-  * @param startFlyTime    开始飞行时间
-  * @param maxWeight       最大载重
-  * @param oilWeight       油量重量
-  * @param maxFlyTime      最大飞行时间
-  * @param maxSeats        最大座位
-  * @param useSeats        使用座位
-  * @param location        所处位置
-  * @param baggageWeight   行李重量
-  * @param passengerWeight 乘客重量
+  * @param aircraftCode 飞机代码
+  * @param maxWeight    最大载重
+  * @param oilWeight    油量重量
+  * @param maxFlyTime   最大飞行时间
+  * @param maxSeats     最大座位
+  * @param location     所处位置
+  * @param cities       乘客
   */
-case class Aircraft(aircraftCode: String, startFlyTime: String, maxWeight: Double, oilWeight: Double, maxFlyTime: Int, maxSeats: Int, useSeats: Int, location: String, baggageWeight: Double, passengerWeight: Double)
+case class Aircraft(aircraftCode: String, maxWeight: Double, oilWeight: Double, maxFlyTime: Int, maxSeats: Int, location: String, cities: Array[CityTMA])
 
 /**
   * 酒店或者机场的信息

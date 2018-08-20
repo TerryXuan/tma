@@ -1,5 +1,8 @@
 package cn.sibat.tma
 
+import java.text.SimpleDateFormat
+import java.util.Date
+
 import scala.collection.mutable
 
 /**
@@ -88,8 +91,8 @@ object CityCost {
     * @param distance 距离
     * @return
     */
-  def calculatingTime(distance: Double): Double = {
-    if (distance == 0.0) 0.0 else distance / 2.25 + 2
+  def calculatingTime(distance: Double): Int = {
+    if (distance == 0.0) 0 else math.round(distance / 2.25 + 2).toInt
   }
 
   def cityCost(cities: Array[CityTMA]): Double = {
@@ -117,7 +120,56 @@ object CityCost {
       * 9. 飞机数量限制，起始位置
       *
       */
-    cities.length
+    var cost = 0.0
+
+    for (i <- indexs) {
+      val city = cities(i)
+      if (city.odType.equals("o")) {
+        val first = cities(i)
+        val firstAirport = airport(first.name)
+        val near = aircraft.minBy(t => {
+          val a = airport(t._2.location)
+          calculatingDistance(a.longitudeDegr, a.longitudeMin, a.latitudeDegr, a.latitudeMin, firstAirport.longitudeDegr, firstAirport.longitudeMin, firstAirport.latitudeDegr, firstAirport.latitudeMin)
+        })._2
+        val nearAirport = airport(near.location)
+        val nearDistance = calculatingDistance(nearAirport.longitudeDegr, nearAirport.longitudeMin, nearAirport.latitudeDegr, nearAirport.latitudeMin, firstAirport.longitudeDegr, firstAirport.longitudeMin, firstAirport.latitudeDegr, firstAirport.latitudeMin)
+        val nearTime = calculatingTime(nearDistance)
+        aircraft.update(near.aircraftCode, near.copy(cities = near.cities ++ Array(first)))
+      } else {
+        val existAircraft = aircraft.filter(t=> t._2.cities.exists(c => c.id.equals(city.id)))
+        if (existAircraft.isEmpty){
+
+        }
+      }
+    }
+    cost
   }
+
+  /**
+    * 采取行为后，环境的反馈
+    *
+    * @param S 状态
+    * @param A 行为
+    * @return (下一状态，奖励)
+    */
+  def get_env_feedback1(S: CityTMA, A: CityTMA): (CityTMA, Double) = {
+    var S_ = A
+    var R = 0.0
+    if (S.odType.equals("d")) {
+      R = -1.0
+      S_ = A
+    } else if (S.odType.equals("o")) {
+      R = 0.0
+      S_ = A
+    } else {
+
+    }
+    if (true) {
+      S_ = CityTMA("end", "o", "end", "end", -1, -1, -1, -1, "end", "end")
+      R = 1.0
+    }
+    (S_, R)
+  }
+
 
 }

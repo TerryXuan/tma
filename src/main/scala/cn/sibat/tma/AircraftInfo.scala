@@ -14,7 +14,7 @@ object AircraftInfo {
       val gtow = row.getAs[Int]("GTOW")
       val seatCapacity = row.getAs[Int]("SeatCapacity")
       val aps = row.getAs[Int]("APS")
-      Aircraft(code, "start", gtow - aps, 0.0, minutes, seatCapacity, 0, location, 0.0, 0.0)
+      Aircraft(code, gtow - aps, 0.0, minutes, seatCapacity, location, Array[CityTMA]())
     })
 
     aircraftInfo.show()
