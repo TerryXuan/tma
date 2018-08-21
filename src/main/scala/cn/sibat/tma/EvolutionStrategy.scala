@@ -92,13 +92,13 @@ class EvolutionStrategy(cities: Array[CityTMA]) extends Serializable {
         if (i != j) {
           val child = CrossStrategy.randomCross(routes(i), routes(j))
           val mutate = MutateStrategy.mutate(child._1, child._2)
-          val cityCostP1 = CityCost.cityCost(cities, routes(i))
-          val cityCostP2 = CityCost.cityCost(cities, routes(j))
-          val cityCostC1 = CityCost.cityCost(cities, mutate._1)
-          val cityCostC2 = CityCost.cityCost(cities, mutate._2)
-          if (cityCostP1 > cityCostC1)
+          val cityCostP1 = CityCost.apply.cityCost(routes(i))
+          val cityCostP2 = CityCost.apply.cityCost(routes(j))
+          val cityCostC1 = CityCost.apply.cityCost(mutate._1)
+          val cityCostC2 = CityCost.apply.cityCost(mutate._2)
+          if (cityCostP1._1 > cityCostC1._1)
             routes(i) = mutate._1
-          if (cityCostP2 > cityCostC2)
+          if (cityCostP2._1 > cityCostC2._1)
             routes(j) = mutate._2
         }
       }
@@ -110,7 +110,7 @@ class EvolutionStrategy(cities: Array[CityTMA]) extends Serializable {
     * 取适应度最小的个体
     */
   def bestOne(): Array[Int] = {
-    routes.minBy(arr => CityCost.cityCost(cities, arr))
+    routes.minBy(arr => CityCost.apply.cityCost(arr))
   }
 
   /**
@@ -126,7 +126,7 @@ class EvolutionStrategy(cities: Array[CityTMA]) extends Serializable {
     * 选取最优的前种群数
     */
   def selectPopulation(): Unit = {
-    val take = routes.sortBy(arr => CityCost.cityCost(cities, arr)).take(population_size)
+    val take = routes.sortBy(arr => CityCost.apply.cityCost(arr)).take(population_size)
     routes.clear()
     routes ++= take
   }
@@ -136,7 +136,7 @@ class EvolutionStrategy(cities: Array[CityTMA]) extends Serializable {
     * 选一半最优个体，一半随机生成个体
     */
   def selectPopulation1(): Unit = {
-    val take = routes.sortBy(arr => CityCost.cityCost(cities, arr)).take(population_size / 2)
+    val take = routes.sortBy(arr => CityCost.apply.cityCost(arr)).take(population_size / 2)
     routes.clear()
     routes ++= take
     for (i <- population_size / 2 until population_size) {

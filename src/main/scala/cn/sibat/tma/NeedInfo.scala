@@ -125,6 +125,7 @@ object NeedInfo {
       val result = new ArrayBuffer[CityTMA]()
       //大单拆单
       if (arr.length > 16) {
+        var count = 0
         arr.foreach(row => {
           val passengerWeight = row.getAs[String]("PassengerWeight").toDouble
           val baggageWeight = row.getAs[String]("BaggageWeight").toDouble
@@ -135,10 +136,11 @@ object NeedInfo {
           val time = math.round(row.getAs[String]("time").toDouble).toInt
           val legs = row.getAs[Int]("legs")
           val split = row.getAs[String]("timeWindow").split("-")
-          val o = CityTMA(str, "o", direction, oName, legs, 1, passengerWeight, baggageWeight, split(0), split(1), dis, time)
-          val d = CityTMA(str, "d", direction, dName, legs, -1, passengerWeight, baggageWeight, split(0), split(1), dis, time)
+          val o = CityTMA(str + s"_$count", "o", direction, oName, legs, 1, passengerWeight, baggageWeight, split(0), split(1), dis, time)
+          val d = CityTMA(str + s"_$count", "d", direction, dName, legs, -1, passengerWeight, baggageWeight, split(0), split(1), dis, time)
           result += o
           result += d
+          count += 1
         })
       } else {
         val passengerWeight = arr.map(_.getAs[String]("PassengerWeight").toDouble).sum

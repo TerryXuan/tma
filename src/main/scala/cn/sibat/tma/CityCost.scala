@@ -1,7 +1,6 @@
 package cn.sibat.tma
 
 import java.text.SimpleDateFormat
-import java.util.Date
 
 import scala.collection.mutable
 
@@ -10,11 +9,14 @@ import scala.collection.mutable
   *
   * @author kong
   */
-object CityCost {
+class CityCost {
   //飞机的动态信息表,飞机code->info
   private var aircraft: mutable.HashMap[String, Aircraft] = _
   //酒店机场信息表
   private var airport: mutable.HashMap[String, Airport] = _
+
+  //初始化染色体
+  private var globalCities: Array[CityTMA] = _
 
   /**
     * 设置飞机信息
@@ -37,15 +39,27 @@ object CityCost {
   }
 
   /**
+    * 设置基因的信息
+    * 如果信息太大就使用数据库作为替代
+    *
+    * @param cities 基因的信息
+    */
+  def setCities(cities: Array[CityTMA]): Unit = {
+    globalCities = cities
+  }
+
+  /**
     * 设置所有的信息，包括飞机信息、机场酒店信息
     * 如果信息太大就使用数据库作为替代
     *
     * @param aircraftMap 飞机信息
     * @param airportMap  机场酒店信息
+    * @param cities      基因的信息
     */
-  def setAll(aircraftMap: mutable.HashMap[String, Aircraft], airportMap: mutable.HashMap[String, Airport]): Unit = {
+  def setAll(aircraftMap: mutable.HashMap[String, Aircraft], airportMap: mutable.HashMap[String, Airport], cities: Array[CityTMA]): Unit = {
     aircraft = aircraftMap
     airport = airportMap
+    globalCities = cities
   }
 
   /**
@@ -102,11 +116,10 @@ object CityCost {
   /**
     * 适应度计算函数
     *
-    * @param cities 基因集合
     * @param indexs 组合策略
     * @return
     */
-  def cityCost(cities: Array[CityTMA], indexs: Array[Int]): Double = {
+  def cityCost(indexs: Array[Int]): (Double, Double) = {
     /**
       * 限制条件
       * 1. 飞机日落半小时要落地。
@@ -120,13 +133,12 @@ object CityCost {
       * 9. 飞机数量限制，起始位置
       *
       */
-    var cost = 0.0
     //用来标识d位置错位
     var temp = false
     val sdf = new SimpleDateFormat("H:mm:ss")
 
     for (i <- indexs) {
-      val city = cities(i)
+      val city = globalCities(i)
       if (city.odType.equals("o")) {
         //当前的任务
         val currentAirport = airport(city.name)
@@ -140,41 +152,46 @@ object CityCost {
             true
           } else { //非空飞机
             // 当前飞机有无任务
-            val cities = t._2.cities
+            val cities1 = t._2.cities
             //第一个任务飞行距离与时间，即初始调度的耗费
             val aircraftAirport = airport(t._2.location)
-            val firstAirport = airport(cities.head.name)
+            val firstAirport = airport(cities1.head.name)
             val disAF = calculatingDistance(aircraftAirport.longitudeDegr, aircraftAirport.longitudeMin, aircraftAirport.latitudeDegr, aircraftAirport.latitudeMin, firstAirport.longitudeDegr, firstAirport.longitudeMin, firstAirport.latitudeDegr, firstAirport.latitudeMin)
             val firstTime = calculatingTime(disAF)
 
             //使用座位数
-            val seats = cities.map(_.seats).sum
+            val seats = cities1.map(_.seats).sum
 
             // 已执行的飞行距离与时间
             var flyTime = 0
             var flyDis = 0.0
-            for (i <- 0 until cities.length - 1) {
-              val i_airport = airport(cities(i).name)
-              val i_1_airport = airport(cities(i + 1).name)
+            for (i <- 0 until cities1.length - 1) {
+              val i_airport = airport(cities1(i).name)
+              val i_1_airport = airport(cities1(i + 1).name)
               val dis = calculatingDistance(i_airport.longitudeDegr, i_airport.longitudeMin, i_airport.latitudeDegr, i_airport.latitudeMin, i_1_airport.longitudeDegr, i_1_airport.longitudeMin, i_1_airport.latitudeDegr, i_1_airport.latitudeMin)
               flyDis += dis
               flyTime += calculatingTime(dis)
             }
 
             //执行该任务所需的时间与距离
-            val lastAirport = airport(cities.last.name)
+            val lastAirport = airport(cities1.last.name)
             val currentDis = calculatingDistance(lastAirport.longitudeDegr, lastAirport.longitudeMin, lastAirport.latitudeDegr, lastAirport.latitudeMin, currentAirport.longitudeDegr, currentAirport.longitudeMin, currentAirport.latitudeDegr, currentAirport.latitudeMin)
             val currentTime = calculatingTime(currentDis)
 
             //座位满座，任务都执行完了，即没有时间窗限制，只需考虑飞行时间
             if (seats == 0) {
               // 当前飞机的位置，调度到该任务的位置和执行的时间，是否超过最大飞行时间
-              t._2.maxFlyTime > firstTime + flyTime + currentTime
+              t._2.maxFlyTime > firstTime + flyTime + currentTime + city.time
             } else { // 有任务,挑选未执行完的任务的时间窗
-              val exec = cities.filter(c => c.odType.equals("d")).map(_.id)
-              val t1 = cities.filter(c => !exec.contains(c.id)).maxBy(c => sdf.parse(c.startTime).getTime)
-              val t2 = cities.filter(c => !exec.contains(c.id)).minBy(c => sdf.parse(c.endTime).getTime)
-              math.max(sdf.parse(t1.startTime).getTime, sdf.parse(t2.endTime).getTime) > math.min(st, et) && t._2.maxFlyTime > firstTime + flyTime + currentTime && t._2.maxSeats >= seats + city.seats
+              val exec = cities1.filter(c => c.odType.equals("d")).map(_.id)
+              val remain = cities1.filter(c => !exec.contains(c.id))
+              if (remain.isEmpty)
+                false
+              else {
+                val t1 = remain.maxBy(c => sdf.parse(c.startTime).getTime)
+                val t2 = remain.minBy(c => sdf.parse(c.endTime).getTime)
+                math.max(sdf.parse(t1.startTime).getTime, sdf.parse(t2.endTime).getTime) > math.min(st, et) && t._2.maxFlyTime > firstTime + flyTime + currentTime + city.time && t._2.maxSeats >= seats + city.seats
+              }
             }
           }
         })
@@ -202,34 +219,31 @@ object CityCost {
           temp = true
       }
     }
-    cost
-  }
+    var cost = 1.0
+    var total = 0.0
+    if (temp) {
+      aircraft.foreach(t => {
+        val cityTMAs = t._2.cities
+        val aircraftAirport = airport(t._2.location)
+        val firstAirport = airport(cityTMAs.head.name)
+        val disAF = calculatingDistance(aircraftAirport.longitudeDegr, aircraftAirport.longitudeMin, aircraftAirport.latitudeDegr, aircraftAirport.latitudeMin, firstAirport.longitudeDegr, firstAirport.longitudeMin, firstAirport.latitudeDegr, firstAirport.latitudeMin)
 
-  /**
-    * 采取行为后，环境的反馈
-    *
-    * @param S 状态
-    * @param A 行为
-    * @return (下一状态，奖励)
-    */
-  def get_env_feedback(S: CityTMA, A: CityTMA): (CityTMA, Double) = {
-    var S_ = A
-    var R = 0.0
-    if (S.odType.equals("d")) {
-      R = -1.0
-      S_ = A
-    } else if (S.odType.equals("o")) {
-      R = 0.0
-      S_ = A
-    } else {
-
+        // 已执行的飞行距离与时间
+        var flyDis = 0.0
+        for (i <- 0 until cityTMAs.length - 1) {
+          val i_airport = airport(cityTMAs(i).name)
+          val i_1_airport = airport(cityTMAs(i + 1).name)
+          val dis = calculatingDistance(i_airport.longitudeDegr, i_airport.longitudeMin, i_airport.latitudeDegr, i_airport.latitudeMin, i_1_airport.longitudeDegr, i_1_airport.longitudeMin, i_1_airport.latitudeDegr, i_1_airport.latitudeMin)
+          flyDis += dis
+        }
+        total += (flyDis + disAF)
+      })
     }
-    if (true) {
-      S_ = CityTMA("end", "o", "end", "end", -1, -1, -1, -1, "end", "end")
-      R = 1.0
-    }
-    (S_, R)
+    cost = 1 / total
+    (cost, total)
   }
+}
 
-
+object CityCost {
+  def apply: CityCost = new CityCost()
 }
