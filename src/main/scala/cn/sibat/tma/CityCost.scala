@@ -123,43 +123,82 @@ object CityCost {
     var cost = 0.0
     //用来标识d位置错位
     var temp = false
+    val sdf = new SimpleDateFormat("H:mm:ss")
 
     for (i <- indexs) {
       val city = cities(i)
       if (city.odType.equals("o")) {
-        val firstAirport = airport(city.name)
+        //当前的任务
+        val currentAirport = airport(city.name)
 
         //过滤不支持该任务的飞机
         val canUse = aircraft.filter(t => {
-          val st = city.startTime
-          val et = city.endTime
-          if (t._2.cities.isEmpty) {
+          //该任务的时间窗
+          val st = sdf.parse(city.startTime).getTime
+          val et = sdf.parse(city.endTime).getTime
+          if (t._2.cities.isEmpty) { //空飞机
             true
-          } else {
-            val t1 = t._2.cities.maxBy(_.startTime)
-            val t2 = t._2.cities.minBy(_.endTime)
-            st <= t1 && t2 >= et && t._2.maxFlyTime > 0
+          } else { //非空飞机
+            // 当前飞机有无任务
+            val cities = t._2.cities
+            //第一个任务飞行距离与时间，即初始调度的耗费
+            val aircraftAirport = airport(t._2.location)
+            val firstAirport = airport(cities.head.name)
+            val disAF = calculatingDistance(aircraftAirport.longitudeDegr, aircraftAirport.longitudeMin, aircraftAirport.latitudeDegr, aircraftAirport.latitudeMin, firstAirport.longitudeDegr, firstAirport.longitudeMin, firstAirport.latitudeDegr, firstAirport.latitudeMin)
+            val firstTime = calculatingTime(disAF)
+
+            //使用座位数
+            val seats = cities.map(_.seats).sum
+
+            // 已执行的飞行距离与时间
+            var flyTime = 0
+            var flyDis = 0.0
+            for (i <- 0 until cities.length - 1) {
+              val i_airport = airport(cities(i).name)
+              val i_1_airport = airport(cities(i + 1).name)
+              val dis = calculatingDistance(i_airport.longitudeDegr, i_airport.longitudeMin, i_airport.latitudeDegr, i_airport.latitudeMin, i_1_airport.longitudeDegr, i_1_airport.longitudeMin, i_1_airport.latitudeDegr, i_1_airport.latitudeMin)
+              flyDis += dis
+              flyTime += calculatingTime(dis)
+            }
+
+            //执行该任务所需的时间与距离
+            val lastAirport = airport(cities.last.name)
+            val currentDis = calculatingDistance(lastAirport.longitudeDegr, lastAirport.longitudeMin, lastAirport.latitudeDegr, lastAirport.latitudeMin, currentAirport.longitudeDegr, currentAirport.longitudeMin, currentAirport.latitudeDegr, currentAirport.latitudeMin)
+            val currentTime = calculatingTime(currentDis)
+
+            //座位满座，任务都执行完了，即没有时间窗限制，只需考虑飞行时间
+            if (seats == 0) {
+              // 当前飞机的位置，调度到该任务的位置和执行的时间，是否超过最大飞行时间
+              t._2.maxFlyTime > firstTime + flyTime + currentTime
+            } else { // 有任务,挑选未执行完的任务的时间窗
+              val exec = cities.filter(c => c.odType.equals("d")).map(_.id)
+              val t1 = cities.filter(c => !exec.contains(c.id)).maxBy(c => sdf.parse(c.startTime).getTime)
+              val t2 = cities.filter(c => !exec.contains(c.id)).minBy(c => sdf.parse(c.endTime).getTime)
+              math.max(sdf.parse(t1.startTime).getTime, sdf.parse(t2.endTime).getTime) > math.min(st, et) && t._2.maxFlyTime > firstTime + flyTime + currentTime && t._2.maxSeats >= seats + city.seats
+            }
           }
         })
 
+        //符合任务的飞机，挑选距离最小的飞机
         if (canUse.nonEmpty) {
           val near = canUse.minBy(t => {
             val a = airport(t._2.location)
-            calculatingDistance(a.longitudeDegr, a.longitudeMin, a.latitudeDegr, a.latitudeMin, firstAirport.longitudeDegr, firstAirport.longitudeMin, firstAirport.latitudeDegr, firstAirport.latitudeMin)
+            calculatingDistance(a.longitudeDegr, a.longitudeMin, a.latitudeDegr, a.latitudeMin, currentAirport.longitudeDegr, currentAirport.longitudeMin, currentAirport.latitudeDegr, currentAirport.latitudeMin)
           })._2
           val nearAirport = airport(near.location)
-          val nearDistance = calculatingDistance(nearAirport.longitudeDegr, nearAirport.longitudeMin, nearAirport.latitudeDegr, nearAirport.latitudeMin, firstAirport.longitudeDegr, firstAirport.longitudeMin, firstAirport.latitudeDegr, firstAirport.latitudeMin)
+          val nearDistance = calculatingDistance(nearAirport.longitudeDegr, nearAirport.longitudeMin, nearAirport.latitudeDegr, nearAirport.latitudeMin, currentAirport.longitudeDegr, currentAirport.longitudeMin, currentAirport.latitudeDegr, currentAirport.latitudeMin)
           val nearTime = calculatingTime(nearDistance)
           aircraft.update(near.aircraftCode, near.copy(cities = near.cities ++ Array(city)))
-        } else {
+        } else { // 无符合任务的飞机，调度不合理
           temp = true
         }
       } else {
+        //该d的o已经上飞机，更新为下飞机，完成任务，飞机更新位置
         val existAircraft = aircraft.filter(t => t._2.cities.exists(c => c.id.equals(city.id)))
         if (existAircraft.nonEmpty) {
           val head = existAircraft.head
           aircraft.update(head._1, head._2.copy(cities = head._2.cities ++ Array(city)))
-        } else
+        } else //该d的o还没上飞机，属于非正常调度，直接reward0
           temp = true
       }
     }

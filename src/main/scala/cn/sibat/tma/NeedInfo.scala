@@ -5,6 +5,8 @@ import java.text.SimpleDateFormat
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.sql.functions._
 
+import scala.collection.mutable.ArrayBuffer
+
 /**
   * tma 需求提取和组成基因
   *
@@ -28,7 +30,7 @@ object NeedInfo {
     //No,GTOW,SeatCapacity,APS
     val availablePayload = spark.read.option("header", value = true).csv("E:/data/TMA/dataset/AvailablePayload.csv")
     //temp,A,lon,lat,B,lon,lat,dis,time
-    val dura_dist = spark.read.csv("E:/data/TMA/dura_dist")
+    val dura_dist = spark.read.csv("E:/data/TMA/dura_dist").toDF("temp", "DepAirport", "Alon", "Alat", "ArrAirport", "Blon", "Blat", "distance", "time")
     //No,Name,OperationalRequirementType,Dependency,MinMax,Requirementvalue
     val SLACustomerWise = spark.read.option("header", value = true).csv("E:/data/TMA/dataset/SLACustomerWise.csv")
       .filter(trim($"OperationalRequirementType") === "Flight Legs").distinct()
@@ -115,22 +117,49 @@ object NeedInfo {
     val join = filter.join(flyTime.select("CFNumber", "TodaysSTA"), data.col("ConnFlightCode") === flyTime.col("CFNumber"), "left_outer")
       .withColumn("timeWindow", timeWindow(col("ConnFlightCode"), col("TodaysSTA"), col("Direction")))
       .withColumn("legs", withLegs(col("DepAirport"), col("ArrAirport")))
+      .join(dura_dist, Seq("DepAirport", "ArrAirport"))
 
     //基因445*2
     val gene = join.groupByKey(row => row.getAs[String]("BookingCode") + "," + row.getAs[String]("ConnFlightCode")).flatMapGroups((str, it) => {
       val arr = it.toArray
-      val passengerWeight = arr.map(_.getAs[String]("PassengerWeight").toDouble).sum
-      val baggageWeight = arr.map(_.getAs[String]("BaggageWeight").toDouble).sum
-      val row = arr.head
-      val direction = row.getAs[String]("Direction")
-      val oName = row.getAs[String]("DepAirport")
-      val dName = row.getAs[String]("ArrAirport")
-      val legs = row.getAs[Int]("legs")
-      val split = row.getAs[String]("timeWindow").split("-")
-      val o = CityTMA(str, "o", direction, oName, legs, arr.length, passengerWeight, baggageWeight, split(0), split(1))
-      val d = CityTMA(str, "d", direction, dName, legs, -arr.length, passengerWeight, baggageWeight, split(0), split(1))
-      Array(o, d)
+      val result = new ArrayBuffer[CityTMA]()
+      //大单拆单
+      if (arr.length > 16) {
+        arr.foreach(row => {
+          val passengerWeight = row.getAs[String]("PassengerWeight").toDouble
+          val baggageWeight = row.getAs[String]("BaggageWeight").toDouble
+          val direction = row.getAs[String]("Direction")
+          val oName = row.getAs[String]("DepAirport")
+          val dName = row.getAs[String]("ArrAirport")
+          val dis = row.getAs[String]("distance").toDouble
+          val time = math.round(row.getAs[String]("time").toDouble).toInt
+          val legs = row.getAs[Int]("legs")
+          val split = row.getAs[String]("timeWindow").split("-")
+          val o = CityTMA(str, "o", direction, oName, legs, 1, passengerWeight, baggageWeight, split(0), split(1), dis, time)
+          val d = CityTMA(str, "d", direction, dName, legs, -1, passengerWeight, baggageWeight, split(0), split(1), dis, time)
+          result += o
+          result += d
+        })
+      } else {
+        val passengerWeight = arr.map(_.getAs[String]("PassengerWeight").toDouble).sum
+        val baggageWeight = arr.map(_.getAs[String]("BaggageWeight").toDouble).sum
+        val row = arr.head
+        val direction = row.getAs[String]("Direction")
+        val oName = row.getAs[String]("DepAirport")
+        val dName = row.getAs[String]("ArrAirport")
+        val dis = row.getAs[String]("distance").toDouble
+        val time = math.round(row.getAs[String]("time").toDouble).toInt
+        val legs = row.getAs[Int]("legs")
+        val split = row.getAs[String]("timeWindow").split("-")
+        val o = CityTMA(str, "o", direction, oName, legs, arr.length, passengerWeight, baggageWeight, split(0), split(1), dis, time)
+        val d = CityTMA(str, "d", direction, dName, legs, -arr.length, passengerWeight, baggageWeight, split(0), split(1), dis, time)
+        result += o
+        result += d
+      }
+      result
     })
+
+    gene.repartition(1).write.mode("overwrite").option("header", value = true).csv("E:/data/TMA/dataset/gene1")
 
     //染色体
     //val chromosome = gene.rdd.zipWithIndex()

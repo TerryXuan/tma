@@ -14,8 +14,10 @@ package cn.sibat.tma
   * @param baggageWeight   行李重量
   * @param startTime       时间窗开始
   * @param endTime         时间窗结束
+  * @param dis             该任务所需的距离
+  * @param time            该任务所需的时间
   */
-case class CityTMA(id: String, odType: String, direction: String, name: String, legs: Int, seats: Int, passengerWeight: Double, baggageWeight: Double, startTime: String, endTime: String, exit: Int = 0)
+case class CityTMA(id: String, odType: String, direction: String, name: String, legs: Int, seats: Int, passengerWeight: Double, baggageWeight: Double, startTime: String, endTime: String, dis: Double, time: Int)
 
 /**
   * 飞机属性
