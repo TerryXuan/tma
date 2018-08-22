@@ -109,8 +109,13 @@ class CityCost {
     if (distance == 0.0) 0 else math.round(distance / 2.25 + 2).toInt
   }
 
-  def cityCost(cities: Array[CityTMA]): Double = {
-    cities.length
+  def choiceAction(state: Int): Unit = {
+
+  }
+
+  def cityCost2(cities: Array[Int]): Double = {
+
+    0.0
   }
 
   /**
@@ -219,9 +224,9 @@ class CityCost {
           temp = true
       }
     }
-    var cost = 1.0
+    var cost = 0.0
     var total = 0.0
-    if (temp) {
+    if (!temp) {
       aircraft.foreach(t => {
         val cityTMAs = t._2.cities
         val aircraftAirport = airport(t._2.location)
@@ -239,7 +244,7 @@ class CityCost {
         total += (flyDis + disAF)
       })
     }
-    cost = 1 / total
+    cost = if (total != 0.0) 1 / total else 0.0
     (cost, total)
   }
 }

@@ -5,18 +5,14 @@ import org.apache.spark.sql.SparkSession
 import scala.collection.mutable
 import scala.util.Random
 
-/**
-  * q-learning算法针对遗传算法版本
-  *
-  * @author kong
-  */
-object QLearningForTMA {
+object SarsaLambda {
   var n_states = 9 //多少种基因
   var action: Array[Int] = (0 to 8).toArray //基因下标
   val epsilon = 0.8 //选择行为的概率，0.9代表90%的概率选择学习后的结果，10%的概率选择随机行为
   val learning_rate = 0.01 // 学习率 //bestOne:0.01+1000000 or 0.001+100000
   val gama = 0.9 //状态衰减率
   val max_learn = 1000000 //学习次数
+  val lambda = 0.9
   //基因序列
   private var bestOne: Array[Int] = _
   //初始化染色体
@@ -55,11 +51,15 @@ object QLearningForTMA {
     * @return 选择的行为
     */
   def choose_action(state: Int, q_table: Array[Array[Double]]): Int = {
+
+    if (state == -1)
+      return -1
+
     //1.当状态对应的行为的概率
     val state_actions = q_table(state)
     var action_name = -1
     //2. 选随机数 > epsilon 或者 处于初始化状态，随机选取行为
-    if (math.random > epsilon || state_actions.forall(_ == 0.0)) {
+    if (math.random > epsilon || state_actions.forall(_ == 0.0) || state_actions.forall(_.isNaN)) {
       val choicef = action.diff(bestOne)
       val choice = new Random().nextInt(choicef.length)
       action_name = choicef(choice)
@@ -67,7 +67,8 @@ object QLearningForTMA {
       //3. 非2的情况下，选取概率最大的行为
       val sorted = state_actions.clone().zipWithIndex.sortBy(_._1)
       var temp = sorted.map(_._2).diff(bestOne)
-      action_name = sorted.filter(t => t._2 == temp.head).head._2
+      if (temp.nonEmpty)
+        action_name = sorted.filter(t => t._2 == temp.head).head._2
     }
     action_name
   }
@@ -93,6 +94,7 @@ object QLearningForTMA {
         S_ = -1
         val cost = cityCost.cityCost(bestOne)
         R = cost._1
+        println(cost)
       }
       //2. 行为左移，起点位置，左移还为起点，其他状态左移，不做奖励
     }
@@ -135,33 +137,55 @@ object QLearningForTMA {
   def learn(cityCost: CityCost): Array[Array[Double]] = {
     //1. 构建Q-table
     val q_table = build_q_table(n_states, action)
+    val eligibility_trace = q_table.clone()
     //2. repeat
     for (epsilon <- 0 to max_learn) {
       var step_counter = 0
-      var S = new Random().nextInt(action.length)
-      var is_terminated = false
       resetBestOne()
+      var S = new Random().nextInt(action.length)
+      var A = choose_action(S, q_table)
+      var is_terminated = false
+
+      for (i <- eligibility_trace.indices; j <- eligibility_trace(i).indices) {
+        eligibility_trace(i)(j) = 0.0
+      }
+
       //update_env(S, epsilon, step_counter)
       while (!is_terminated) {
         //3. loop:当前状态选择行为
-        val A = choose_action(S, q_table)
         //4. loop:当前状态和选择行为在环境中的反馈
         val next_states = get_env_feedback(cityCost, S, A)
+
+        val A_next = choose_action(next_states._1, q_table)
         //5.loop: 理论采取当前状态采取当前的行为的反馈q值
         val q_predict = q_table(S)(action.indexOf(A))
         //6. loop:实际上反馈的q值
         var q_target = 0.0
         if (next_states._1 != -1)
-          q_target = next_states._2 + gama * q_table(next_states._1).max
+        //下一次的状态和action
+          q_target = next_states._2 + gama * q_table(next_states._1)(A_next)
         else {
           q_target = next_states._2
-          is_terminated = true
         }
+
+        val error = q_target - q_predict
+
+        eligibility_trace(S)(action.indexOf(A)) += 1
+
         //7. loop:更新q-table
-        q_table(S)(action.indexOf(A)) += learning_rate * (q_target - q_predict)
+        for (i <- q_table.indices; j <- q_table(i).indices) {
+          q_table(i)(j) += learning_rate * error * eligibility_trace(i)(j)
+          eligibility_trace(i)(j) *= gama * lambda
+        }
+
         S = next_states._1
+        A = A_next
         //update_env(S, epsilon, step_counter + 1)
         step_counter += 1
+
+        if (S == -1) {
+          is_terminated = true
+        }
       }
       update_env(q_table, epsilon, step_counter)
     }

@@ -12,20 +12,11 @@ case class Test(id: Int, num: Array[Int])
 
 object tmaUDF {
   def main(args: Array[String]): Unit = {
-    val map = new mutable.HashMap[String, Test]()
-    for (i <- 0 until 10) {
-      map += ((i.toString, Test(i, (0 to 10).toArray)))
+    val dd = Array(1,2,3,4,5)
+    val d = Array(1,5)
+    for (i<- dd.indices){
+      dd(i) *= 1 * 0
     }
-
-    val existAircraft = map.filter(t => t._2.num.contains(2))
-    if (existAircraft.nonEmpty) {
-      val a = existAircraft.head._2
-      val cityTMA = a.num.find(c => c == 2).get
-      a.num.update(a.num.indexOf(cityTMA), 12)
-    }
-
-    map.foreach(t=>{
-      println(t._1,t._2.id,t._2.num.mkString(";"))
-    })
+    println(dd.mkString(","))
   }
 }

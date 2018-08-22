@@ -1,6 +1,6 @@
 package cn.sibat.test
 
-import cn.sibat.tma.{Aircraft, Airport, CityCost, CityTMA}
+import cn.sibat.tma._
 import org.apache.spark.sql.SparkSession
 
 import scala.collection.mutable
@@ -51,5 +51,11 @@ object TestMain {
     val indexs = chromosome.indices.toArray
 
     //(1.0672280726297556,22076.478363523987)
+    val costCity = new CityCost()
+    costCity.setAll(aircraftHashMap,airportHashMap,chromosome)
+    for (i <- 0 to 100000) {
+      val index = CrossStrategy.shuffle(indexs)
+      println(costCity.cityCost(index))
+    }
   }
 }
