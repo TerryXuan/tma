@@ -27,8 +27,8 @@ object TestMain {
       val code = row.getAs[String]("Code")
       val latitudeDegr = row.getAs[Int]("LatitudeDegr")
       val latitudeMin = row.getAs[Int]("LatitudeMin")
-      val longitudeDegr = row.getAs[Int]("LatitudeDegr")
-      val longitudeMin = row.getAs[Int]("LatitudeMin")
+      val longitudeDegr = row.getAs[Int]("LongitudeDegr")
+      val longitudeMin = row.getAs[Int]("LongitudeMin")
       val maxCapacity = row.getAs[Int]("AirportCapacity")
       val canOil = row.getAs[String]("FuelAvailable") match {
         case "No" => false
@@ -51,11 +51,22 @@ object TestMain {
     val indexs = chromosome.indices.toArray
 
     //(1.0672280726297556,22076.478363523987)
-    val costCity = new CityCost()
-    costCity.setAll(aircraftHashMap,airportHashMap,chromosome)
+    var best = indexs
+    var bestCost = 0.0
     for (i <- 0 to 100000) {
+      val costCity = new CityCost()
+      costCity.setAll(aircraftHashMap.clone(), airportHashMap.clone(), chromosome.clone())
       val index = CrossStrategy.shuffle(indexs)
-      println(costCity.cityCost(index))
+      val cost = costCity.cityCost(index)
+      if (cost._1 > 0.0) {
+        println(index.mkString(","))
+      }
+      if (bestCost < cost._1) {
+        bestCost = cost._1
+        best = index
+      }
     }
+
+    println(best.mkString(",") + ";" + bestCost)
   }
 }

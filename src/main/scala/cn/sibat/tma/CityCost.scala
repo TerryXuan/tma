@@ -91,10 +91,10 @@ class CityCost {
     * @return dis
     */
   def calculatingDistance(longitudeDegr: Int, longitudeMin: Int, latitudeDegr: Int, latitudeMin: Int, longitudeDegr2: Int, longitudeMin2: Int, latitudeDegr2: Int, latitudeMin2: Int): Double = {
-    val code1_lat_radiance = math.toRadians(latitudeDegr + latitudeMin / 60)
-    val code2_lat_radiance = math.toRadians(latitudeDegr2 + latitudeMin2 / 60)
-    val code1_lon_radiance = math.toRadians(longitudeDegr + longitudeMin / 60)
-    val code2_lon_radiance = math.toRadians(longitudeDegr2 + longitudeMin2 / 60)
+    val code1_lat_radiance = math.toRadians(latitudeDegr + latitudeMin / 60.0)
+    val code2_lat_radiance = math.toRadians(latitudeDegr2 + latitudeMin2 / 60.0)
+    val code1_lon_radiance = math.toRadians(longitudeDegr + longitudeMin / 60.0)
+    val code2_lon_radiance = math.toRadians(longitudeDegr2 + longitudeMin2 / 60.0)
     calculatingDistance(code1_lon_radiance, code1_lat_radiance, code2_lon_radiance, code2_lat_radiance)
   }
 
@@ -139,10 +139,10 @@ class CityCost {
       *
       */
     //用来标识d位置错位
-    var temp = false
+    var punishCount = 0
     val sdf = new SimpleDateFormat("H:mm:ss")
 
-    for (i <- indexs) {
+    for (i <- indexs.filter(_ > -1)) {
       val city = globalCities(i)
       if (city.odType.equals("o")) {
         //当前的任务
@@ -211,24 +211,24 @@ class CityCost {
           val nearDistance = calculatingDistance(nearAirport.longitudeDegr, nearAirport.longitudeMin, nearAirport.latitudeDegr, nearAirport.latitudeMin, currentAirport.longitudeDegr, currentAirport.longitudeMin, currentAirport.latitudeDegr, currentAirport.latitudeMin)
           val nearTime = calculatingTime(nearDistance)
           aircraft.update(near.aircraftCode, near.copy(cities = near.cities ++ Array(city)))
-        } else { // 无符合任务的飞机，调度不合理
-          temp = true
-        }
+        } else
+          punishCount += 1
       } else {
         //该d的o已经上飞机，更新为下飞机，完成任务，飞机更新位置
         val existAircraft = aircraft.filter(t => t._2.cities.exists(c => c.id.equals(city.id)))
         if (existAircraft.nonEmpty) {
           val head = existAircraft.head
           aircraft.update(head._1, head._2.copy(cities = head._2.cities ++ Array(city)))
-        } else //该d的o还没上飞机，属于非正常调度，直接reward0
-          temp = true
+        } else
+          punishCount += 1
       }
     }
     var cost = 0.0
     var total = 0.0
-    if (!temp) {
-      aircraft.foreach(t => {
-        val cityTMAs = t._2.cities
+
+    aircraft.foreach(t => {
+      val cityTMAs = t._2.cities
+      if (cityTMAs.nonEmpty) {
         val aircraftAirport = airport(t._2.location)
         val firstAirport = airport(cityTMAs.head.name)
         val disAF = calculatingDistance(aircraftAirport.longitudeDegr, aircraftAirport.longitudeMin, aircraftAirport.latitudeDegr, aircraftAirport.latitudeMin, firstAirport.longitudeDegr, firstAirport.longitudeMin, firstAirport.latitudeDegr, firstAirport.latitudeMin)
@@ -242,9 +242,13 @@ class CityCost {
           flyDis += dis
         }
         total += (flyDis + disAF)
-      })
-    }
-    cost = if (total != 0.0) 1 / total else 0.0
+      }
+    })
+    if (punishCount > 0)
+      cost = 0.0
+    else
+      cost = if (total != 0.0) 1 / total else 0.0
+    //cost = if (total != 0.0) 1/total else 0.0
     (cost, total)
   }
 }

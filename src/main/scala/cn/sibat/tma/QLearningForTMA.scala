@@ -13,7 +13,7 @@ import scala.util.Random
 object QLearningForTMA {
   var n_states = 9 //多少种基因
   var action: Array[Int] = (0 to 8).toArray //基因下标
-  val epsilon = 0.8 //选择行为的概率，0.9代表90%的概率选择学习后的结果，10%的概率选择随机行为
+  val epsilon = 0.9 //选择行为的概率，0.9代表90%的概率选择学习后的结果，10%的概率选择随机行为
   val learning_rate = 0.01 // 学习率 //bestOne:0.01+1000000 or 0.001+100000
   val gama = 0.9 //状态衰减率
   val max_learn = 1000000 //学习次数
@@ -100,6 +100,33 @@ object QLearningForTMA {
   }
 
   /**
+    * 采取行为后，环境的反馈
+    *
+    * @param S 状态
+    * @param A 行为
+    * @return (下一状态，奖励)
+    */
+  def get_env_feedback2(cityCost: CityCost, S: Int, A: Int): (Int, Double) = {
+    var S_ = A
+    var R = 0.0
+    if (bestOne.contains(-1)) {
+      if (!bestOne.contains(S))
+        bestOne(bestOne.indexOf(-1)) = S
+      R = 0.0 //cityCost.cityCost(bestOne)._1
+      S_ = A
+    }
+    if (!bestOne.contains(-1)) {
+      if (bestOne.distinct.length == bestOne.length) {
+        S_ = -1
+        val cost = cityCost.cityCost(bestOne)
+        R = cost._1
+      }
+      //2. 行为左移，起点位置，左移还为起点，其他状态左移，不做奖励
+    }
+    (S_, R)
+  }
+
+  /**
     * 更新环境
     *
     * @param q_table      单前状态
@@ -110,8 +137,7 @@ object QLearningForTMA {
     val bestOne = q_table.clone().map(s => {
       s.indexOf(s.max)
     })
-    println(s"Episode ${episode + 1}: total_steps = $step_counter,best one:${bestOne.mkString(",")}")
-    println(bestOne.distinct.length, bestOne.length)
+    print(s"\rEpisode ${episode + 1}: total_steps = $step_counter,best one:${bestOne.mkString(",")};")
     if (bestOne.distinct.length == bestOne.length) {
       println("+++++++++++++++++++++++++++++++++++++++++++++++")
       println("learned best one!!!")
@@ -132,12 +158,14 @@ object QLearningForTMA {
     *
     * @return
     */
-  def learn(cityCost: CityCost): Array[Array[Double]] = {
+  def learn(aircraftMap: mutable.HashMap[String, Aircraft], airportMap: mutable.HashMap[String, Airport], cities: Array[CityTMA]): Array[Array[Double]] = {
     //1. 构建Q-table
     val q_table = build_q_table(n_states, action)
     //2. repeat
     for (epsilon <- 0 to max_learn) {
       var step_counter = 0
+      val cityCost = new CityCost()
+      cityCost.setAll(aircraftMap.clone(), airportMap.clone(), cities.clone())
       var S = new Random().nextInt(action.length)
       var is_terminated = false
       resetBestOne()
@@ -146,7 +174,7 @@ object QLearningForTMA {
         //3. loop:当前状态选择行为
         val A = choose_action(S, q_table)
         //4. loop:当前状态和选择行为在环境中的反馈
-        val next_states = get_env_feedback(cityCost, S, A)
+        val next_states = get_env_feedback2(cityCost, S, A)
         //5.loop: 理论采取当前状态采取当前的行为的反馈q值
         val q_predict = q_table(S)(action.indexOf(A))
         //6. loop:实际上反馈的q值
@@ -155,13 +183,14 @@ object QLearningForTMA {
           q_target = next_states._2 + gama * q_table(next_states._1).max
         else {
           q_target = next_states._2
-          is_terminated = true
         }
         //7. loop:更新q-table
         q_table(S)(action.indexOf(A)) += learning_rate * (q_target - q_predict)
         S = next_states._1
         //update_env(S, epsilon, step_counter + 1)
         step_counter += 1
+        if (S == -1)
+          is_terminated = true
       }
       update_env(q_table, epsilon, step_counter)
     }
@@ -190,8 +219,8 @@ object QLearningForTMA {
       val code = row.getAs[String]("Code")
       val latitudeDegr = row.getAs[Int]("LatitudeDegr")
       val latitudeMin = row.getAs[Int]("LatitudeMin")
-      val longitudeDegr = row.getAs[Int]("LatitudeDegr")
-      val longitudeMin = row.getAs[Int]("LatitudeMin")
+      val longitudeDegr = row.getAs[Int]("LongitudeDegr")
+      val longitudeMin = row.getAs[Int]("LongitudeMin")
       val maxCapacity = row.getAs[Int]("AirportCapacity")
       val canOil = row.getAs[String]("FuelAvailable") match {
         case "No" => false
@@ -210,16 +239,13 @@ object QLearningForTMA {
     airportHashMap ++= airportMap
 
     //染色体
-    val chromosome = gene.as[CityTMA].collect()
+    val chromosome = gene.as[CityTMA].collect().take(10)
     val indexs = chromosome.indices.toArray
 
     //(1.0672280726297556,22076.478363523987)
-    val cityCost = new CityCost()
-    cityCost.setAll(aircraftHashMap, airportHashMap, chromosome)
 
     setCities(chromosome)
 
-    val qtable = learn(cityCost)
-    println(cityCost.cityCost(bestOne))
+    val qtable = learn(aircraftHashMap, airportHashMap, chromosome)
   }
 }

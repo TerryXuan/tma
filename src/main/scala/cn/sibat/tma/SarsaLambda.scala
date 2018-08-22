@@ -60,13 +60,17 @@ object SarsaLambda {
     var action_name = -1
     //2. 选随机数 > epsilon 或者 处于初始化状态，随机选取行为
     if (math.random > epsilon || state_actions.forall(_ == 0.0) || state_actions.forall(_.isNaN)) {
-      val choicef = action.diff(bestOne)
-      val choice = new Random().nextInt(choicef.length)
-      action_name = choicef(choice)
+      val choicef = action.diff(bestOne ++ Array(state))
+      if (choicef.length == 0)
+        action_name = state
+      else {
+        val choice = new Random().nextInt(choicef.length)
+        action_name = choicef(choice)
+      }
     } else {
       //3. 非2的情况下，选取概率最大的行为
       val sorted = state_actions.clone().zipWithIndex.sortBy(_._1)
-      var temp = sorted.map(_._2).diff(bestOne)
+      val temp = sorted.map(_._2).diff(bestOne ++ Array(state))
       if (temp.nonEmpty)
         action_name = sorted.filter(t => t._2 == temp.head).head._2
     }
@@ -94,7 +98,7 @@ object SarsaLambda {
         S_ = -1
         val cost = cityCost.cityCost(bestOne)
         R = cost._1
-        println(cost)
+        //println(cost)
       }
       //2. 行为左移，起点位置，左移还为起点，其他状态左移，不做奖励
     }
@@ -134,13 +138,15 @@ object SarsaLambda {
     *
     * @return
     */
-  def learn(cityCost: CityCost): Array[Array[Double]] = {
+  def learn(aircraftMap: mutable.HashMap[String, Aircraft], airportMap: mutable.HashMap[String, Airport], cities: Array[CityTMA]): Array[Array[Double]] = {
     //1. 构建Q-table
     val q_table = build_q_table(n_states, action)
     val eligibility_trace = q_table.clone()
     //2. repeat
     for (epsilon <- 0 to max_learn) {
       var step_counter = 0
+      val cityCost = new CityCost()
+      cityCost.setAll(aircraftMap.clone(), airportMap.clone(), cities.clone())
       resetBestOne()
       var S = new Random().nextInt(action.length)
       var A = choose_action(S, q_table)
@@ -234,16 +240,12 @@ object SarsaLambda {
     airportHashMap ++= airportMap
 
     //染色体
-    val chromosome = gene.as[CityTMA].collect()
+    val chromosome = gene.as[CityTMA].collect().take(10)
     val indexs = chromosome.indices.toArray
 
     //(1.0672280726297556,22076.478363523987)
-    val cityCost = new CityCost()
-    cityCost.setAll(aircraftHashMap, airportHashMap, chromosome)
-
     setCities(chromosome)
 
-    val qtable = learn(cityCost)
-    println(cityCost.cityCost(bestOne))
+    val qtable = learn(aircraftHashMap, airportHashMap, chromosome)
   }
 }
