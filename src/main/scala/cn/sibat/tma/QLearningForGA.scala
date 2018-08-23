@@ -128,6 +128,7 @@ object QLearningForGA {
       while (!is_terminated) {
         //3. loop:当前状态选择行为
         val A = choose_action(S, q_table)
+        println(S,A)
         //4. loop:当前状态和选择行为在环境中的反馈
         val next_states = get_env_feedback(S, A)
         //5.loop: 理论采取当前状态采取当前的行为的反馈q值

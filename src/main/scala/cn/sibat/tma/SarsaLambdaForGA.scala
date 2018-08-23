@@ -9,7 +9,7 @@ object SarsaLambdaForGA {
   val learning_rate = 0.01 // 学习率 //bestOne:0.01+1000000 or 0.001+100000
   val gama = 0.9 //状态衰减率
   val max_learn = 100 //学习次数
-  val lambda = 0.9
+  val lambda = 1.0
   val bestOne: Array[Int] = new Array[Int](action.length).map(_ - 1) //最优染色体
 
   /**
@@ -74,6 +74,8 @@ object SarsaLambdaForGA {
       S_ = A
       if (!bestOne.contains(S))
         bestOne(bestOne.indexOf(-1)) = S
+      if (!bestOne.contains(A))
+        bestOne(bestOne.indexOf(-1)) = A
     }
     if (!bestOne.contains(-1)) {
       if (bestOne.distinct.length == bestOne.length) {
@@ -122,10 +124,10 @@ object SarsaLambdaForGA {
     //2. repeat
     for (epsilon <- 0 to max_learn) {
       var step_counter = 0
+      resetBestOne()
       var S = new Random().nextInt(action.length)
       var A = choose_action(S, q_table)
       var is_terminated = false
-      resetBestOne()
       for (i <- eligibility_trace.indices; j <- eligibility_trace(i).indices) {
         eligibility_trace(i)(j) = 0.0
       }
@@ -152,16 +154,19 @@ object SarsaLambdaForGA {
         //7. loop:更新q-table
         for (i <- q_table.indices; j <- q_table(i).indices) {
           q_table(i)(j) += learning_rate * error * eligibility_trace(i)(j)
+        }
+
+        for (i <- eligibility_trace.indices; j <- eligibility_trace(i).indices) {
           eligibility_trace(i)(j) *= gama * lambda
         }
+        println(S, A, next_states._1, A_next, next_states._2)
         S = next_states._1
         A = A_next
-        //update_env(S, epsilon, step_counter + 1)
-        step_counter += 1
-
-        if (S == A) {
+        if (A_next == -1) {
           is_terminated = true
         }
+        //update_env(S, epsilon, step_counter + 1)
+        step_counter += 1
       }
       update_env(q_table, epsilon, step_counter)
     }
