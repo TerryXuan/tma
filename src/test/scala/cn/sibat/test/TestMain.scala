@@ -103,10 +103,13 @@ object TestMain {
           if (legsMax == existCityLength) {
             //同酒店同时间窗，随机选
             val sameAirport = sameTypeTask.filter(t => currentTask.map(_._1.name).contains(t._1.name))
-
+            if (sameAirport.isEmpty)
+              resultIndex += -1
+            else
+              resultIndex += 1
           } else { //2. legs未满，可加同类任务
             //当前窗口时间限制
-
+            resultIndex += 1
           }
         }
       }
