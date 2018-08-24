@@ -60,7 +60,8 @@ object TestMain {
     val dType = chromosomeWithIndex.filter(t => t._1.odType.equals("d"))
 
     //构建新的染色体，不以随机形式，保证染色体可用，才可评估优劣
-    for (i <- 0 to 10) {
+    val rdd = new ArrayBuffer[String]()
+    for (i <- 0 to 10000000) {
       val resultIndex = new ArrayBuffer[Int]()
       val ran = new Random()
       val sdf = new SimpleDateFormat("H:mm:ss")
@@ -133,8 +134,13 @@ object TestMain {
         }
       }
 
-      println(resultIndex.mkString(","))
-      println(resultIndex.distinct.length)
+      rdd += resultIndex.mkString(",")
+      print("\r" + i)
+      if (i % 1000 == 0 && i != 0) {
+        spark.sparkContext.parallelize(rdd, numSlices = 1).toDF().write.mode("append").csv("E:/data/TMA/dataset/chromosome")
+        rdd.clear()
+        println(rdd.length)
+      }
     }
 
     //(1.0672280726297556,22076.478363523987)
