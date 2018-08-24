@@ -56,82 +56,104 @@ object TestMain {
 
     val chromosomeWithIndex = chromosome.zipWithIndex
 
+    val oType = chromosomeWithIndex.filter(t => t._1.odType.equals("o"))
+    val dType = chromosomeWithIndex.filter(t => t._1.odType.equals("d"))
+
     //构建新的染色体，不以随机形式，保证染色体可用，才可评估优劣
-    val resultIndex = new ArrayBuffer[Int]()
-    val ran = new Random()
-    val sdf = new SimpleDateFormat("H:mm:ss")
-    while (indexs.diff(resultIndex).nonEmpty) {
-      if (resultIndex.isEmpty) { // 刚开始随机选择出发点必须为o类型
-        val filter = chromosome.filter(c => c.odType.equals("o"))
-        val ranIndex = ran.nextInt(filter.length)
-        resultIndex += chromosome.indexOf(filter(ranIndex))
-        //满最大飞机容量，不能拼单
-        if (filter(ranIndex).seats == 16) {
-          resultIndex += chromosome.indexOf(chromosome.filter(f => f.odType.equals("d") && f.id.equals(filter(ranIndex).id)).head)
-          resultIndex += -1
-        }
-      } else {
-        val firstWindow = resultIndex.slice(resultIndex.lastIndexOf(-1) + 1, resultIndex.length) //当前的任务前面执行集合
-        //当前还没有分配任务,随机重新分配未被选取的o
-        if (firstWindow.isEmpty) {
-          val filter = chromosomeWithIndex.filter(c => c._1.odType.equals("o"))
-          val noSelectFilter = filter.map(_._2).diff(resultIndex)
-          val ranIndex = ran.nextInt(noSelectFilter.length)
-          val index = filter.find(t => t._2 == noSelectFilter(ranIndex)).get._2
-          resultIndex += index
-          if (chromosome(index).seats == 16) {
-            resultIndex += chromosome.indexOf(chromosome.filter(f => f.odType.equals("d") && f.id.equals(chromosome(index).id)).head)
+    for (i <- 0 to 10) {
+      val resultIndex = new ArrayBuffer[Int]()
+      val ran = new Random()
+      val sdf = new SimpleDateFormat("H:mm:ss")
+      while (indexs.diff(resultIndex).nonEmpty) {
+        if (resultIndex.isEmpty) { // 刚开始随机选择出发点必须为o类型
+          val ranIndex = ran.nextInt(oType.length)
+          resultIndex += oType(ranIndex)._2
+          resultIndex += dType.filter(f => f._1.id.equals(oType(ranIndex)._1.id)).head._2
+          //满最大飞机容量，不能拼单
+          if (oType(ranIndex)._1.seats == 16) {
             resultIndex += -1
           }
         } else {
-          // 1. 当前的任务集legs已满不可再加任务
-          val currentTask = chromosomeWithIndex.filter(t => firstWindow.contains(t._2))
-
-          //已使用座位
-          val seats = currentTask.map(_._1.seats).sum
-
-          // 剩下的任务
-          val noExecTask = chromosomeWithIndex.filter(t => !resultIndex.contains(t._2))
-          val legsMax = 2 //最大的legs是2
-          val existCityLength = currentTask.map(_._1.name).distinct.length - 2 // 当前的legs
-          val t1 = currentTask.maxBy(c => sdf.parse(c._1.startTime).getTime) //当前最晚出发时间
-          val sameTypeTask = noExecTask.filter(t => {
-            val c_t2 = sdf.parse(t._1.endTime).getTime
-            val t_t1 = sdf.parse(t1._1.startTime).getTime
-            t._1.direction.equals(currentTask.head._1.direction) && t_t1 < c_t2 && t._1.seats + seats <= 16
-          })
-          if (legsMax == existCityLength) {
-            //同酒店同时间窗，随机选
-            val sameAirport = sameTypeTask.filter(t => currentTask.map(_._1.name).contains(t._1.name))
-            if (sameAirport.isEmpty)
+          val firstWindow = resultIndex.slice(resultIndex.lastIndexOf(-1) + 1, resultIndex.length) //当前的任务前面执行集合
+          //当前还没有分配任务,随机重新分配未被选取的o
+          if (firstWindow.isEmpty) {
+            val noSelectFilter = oType.map(_._2).diff(resultIndex)
+            val ranIndex = ran.nextInt(noSelectFilter.length)
+            val index = oType.find(t => t._2 == noSelectFilter(ranIndex)).get
+            resultIndex += index._2
+            resultIndex += dType.filter(f => f._1.id.equals(index._1.id)).head._2
+            if (index._1.seats == 16) {
               resultIndex += -1
-            else
-              resultIndex += 1
-          } else { //2. legs未满，可加同类任务
-            //当前窗口时间限制
-            resultIndex += 1
+            }
+          } else {
+            // 1. 当前的任务集legs已满不可再加任务
+            val currentTaskO = oType.filter(t => firstWindow.contains(t._2))
+            val currentTaskD = dType.filter(t => firstWindow.contains(t._2))
+
+            //已使用座位
+            val seats = currentTaskO.map(_._1.seats).sum
+
+            // 剩下的任务
+            val noExecTask = chromosomeWithIndex.filter(t => !resultIndex.contains(t._2))
+            val legsMax = 2 //最大的legs是2
+            val existCityLength = currentTaskO.map(_._1.name).distinct.length + currentTaskD.map(_._1.name).distinct.length - 2 // 当前的legs
+            val t1 = currentTaskO.maxBy(c => sdf.parse(c._1.startTime).getTime) //当前最晚出发时间
+            val sameTypeTaskO = noExecTask.filter(t => {
+              val c_t2 = sdf.parse(t._1.endTime).getTime
+              val t_t1 = sdf.parse(t1._1.startTime).getTime
+              t._1.direction.equals(currentTaskO.head._1.direction) && t_t1 < c_t2 && t._1.seats + seats <= 16 && t._1.odType.equals("o")
+            })
+            if (sameTypeTaskO.isEmpty) {
+              resultIndex += -1
+            } else {
+              if (legsMax == existCityLength) {
+                //同酒店同时间窗，随机选
+                val currentName = currentTaskD.map(_._1.name) ++ currentTaskO.map(_._1.name)
+                val ids = noExecTask.groupBy(_._1.id).filter(t => t._2.map(_._1.name).diff(currentName).isEmpty).keys.toArray
+                val sameAirport = sameTypeTaskO.filter(t => ids.contains(t._1.id))
+                if (sameAirport.isEmpty)
+                  resultIndex += -1
+                else {
+                  val ranIndex = ran.nextInt(sameAirport.length)
+                  val index = sameAirport(ranIndex)
+                  resultIndex += index._2
+                  resultIndex += dType.filter(f => f._1.id.equals(index._1.id)).head._2
+                  resultIndex += -1
+                }
+              } else { //2. legs未满，可加同类任务
+                //当前窗口时间限制
+                val ranIndex = ran.nextInt(sameTypeTaskO.length)
+                val index = sameTypeTaskO(ranIndex)
+                resultIndex += index._2
+                resultIndex += dType.filter(f => f._1.id.equals(index._1.id)).head._2
+                resultIndex += -1
+              }
+            }
           }
         }
       }
+
+      println(resultIndex.mkString(","))
+      println(resultIndex.distinct.length)
     }
 
     //(1.0672280726297556,22076.478363523987)
-    var best = indexs
-    var bestCost = 0.0
-    for (i <- 0 to 100000) {
-      val costCity = new CityCost()
-      costCity.setAll(aircraftHashMap.clone(), airportHashMap.clone(), chromosome.clone())
-      val index = CrossStrategy.shuffle(indexs)
-      val cost = costCity.cityCost(index)
-      if (cost._1 > 0.0) {
-        println(index.mkString(","))
-      }
-      if (bestCost < cost._1) {
-        bestCost = cost._1
-        best = index
-      }
-    }
-
-    println(best.mkString(",") + ";" + bestCost)
+    //    var best = indexs
+    //    var bestCost = 0.0
+    //    for (i <- 0 to 100000) {
+    //      val costCity = new CityCost()
+    //      costCity.setAll(aircraftHashMap.clone(), airportHashMap.clone(), chromosome.clone())
+    //      val index = CrossStrategy.shuffle(indexs)
+    //      val cost = costCity.cityCost(index)
+    //      if (cost._1 > 0.0) {
+    //        println(index.mkString(","))
+    //      }
+    //      if (bestCost < cost._1) {
+    //        bestCost = cost._1
+    //        best = index
+    //      }
+    //    }
+    //
+    //    println(best.mkString(",") + ";" + bestCost)
   }
 }
