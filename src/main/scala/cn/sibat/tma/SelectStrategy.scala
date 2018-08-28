@@ -207,11 +207,11 @@ object SelectStrategy {
         }
       } else {
         //该d的o已经上飞机，更新为下飞机，完成任务，飞机更新位置
-//        val existAircraft = aircraft.filter(t => t._2.cities.exists(c => c.id.equals(city.id)))
-//        if (existAircraft.nonEmpty) {
-//          val head = existAircraft.head
-//          aircraft.update(head._1, head._2.copy(cities = head._2.cities ++ Array(city)))
-//        }
+        //        val existAircraft = aircraft.filter(t => t._2.cities.exists(c => c.id.equals(city.id)))
+        //        if (existAircraft.nonEmpty) {
+        //          val head = existAircraft.head
+        //          aircraft.update(head._1, head._2.copy(cities = head._2.cities ++ Array(city)))
+        //        }
       }
     }
     var cost = 0.0
@@ -238,5 +238,21 @@ object SelectStrategy {
     cost = if (total != 0.0) 1 / total else 0.0
     //cost = if (total != 0.0) 1/total else 0.0
     (cost, total)
+  }
+
+  /**
+    * 城市的索引
+    *
+    * @param indexs indexs
+    */
+  def save(indexs: Array[Int]): Unit = {
+    val cities = indexs.map(globalCities(_))
+    val depart = cities.filter(c=>c.direction.equals("Departing"))
+    val arrival = cities.filter(c=>c.direction.equals("Arriving"))
+    val toDepartAircraft = aircraft.filter(!_._2.location.equals("MLE"))
+    for (craft <- toDepartAircraft){
+      val tasks = depart.filter(c => c.name.equals(craft._2.location))
+      craft._2.cities
+    }
   }
 }
