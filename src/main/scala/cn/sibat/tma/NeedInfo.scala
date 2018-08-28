@@ -76,7 +76,7 @@ object NeedInfo {
         if (timestamp24 > sdf.parse(sunsetArrival).getTime)
           value = "6:00:00-8:00:00"
         else {
-          value = s"${sdf.format(timestamp24 + 45 * 60 * 1000)}-${sdf.format(timestamp24 + 165 * 60 * 1000)}"
+          value = s"${sdf.format(timestamp24 + 60 * 60 * 1000)}-${sdf.format(timestamp24 + 90 * 60 * 1000)}"
         }
       } else if (direction.equals("Departing")) {
         val timeTrim = time.replaceAll(" ", "").toLowerCase
@@ -161,7 +161,7 @@ object NeedInfo {
       result
     })
 
-    gene.repartition(1).write.mode("overwrite").option("header", value = true).csv("E:/data/TMA/dataset/gene1")
+    gene.repartition(1).write.mode("overwrite").option("header", value = true).csv("E:/data/TMA/dataset/gene")
 
     //染色体
     //val chromosome = gene.rdd.zipWithIndex()

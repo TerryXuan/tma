@@ -104,17 +104,13 @@ object SelectStrategy {
     if (distance == 0.0) 0 else math.round(distance / 2.25 + 2).toInt
   }
 
-  def choiceAction(state: Int): Unit = {
-
-  }
-
   /**
     * 适应度计算函数
     *
     * @param indexs 组合策略
     * @return
     */
-  def cityCost(indexs: Array[Int]): (Double, Double) = {
+  def cityCost(indexs: String): (Double, Double) = {
     /**
       * 限制条件
       * 1. 飞机日落半小时要落地。
@@ -128,13 +124,20 @@ object SelectStrategy {
       * 9. 飞机数量限制，起始位置
       *
       */
-    //用来标识d位置错位
-    var punishCount = 0
     val sdf = new SimpleDateFormat("H:mm:ss")
+    val split = indexs.split("-1")
+    //按出发时间排列任务
+    val sortByTime = split.sortBy(s => {
+      s.split(",").maxBy(c => sdf.parse(globalCities(c.toInt).startTime).getTime)
+    })
 
-    for (i <- indexs.filter(_ > -1)) {
-      val city = globalCities(i)
-      if (city.odType.equals("o")) {
+    for (plan <- sortByTime) {
+      val indexs = plan.split(",").map(_.toInt)
+      val cityTMAs = indexs.map(i => globalCities(i))
+
+      if (cityTMAs.head.direction.equals("Departing")) {
+        val sortedSet = cityTMAs.sortBy(_.legs)
+        val city = sortedSet.head
         //当前的任务
         val currentAirport = airport(city.name)
 
@@ -201,16 +204,14 @@ object SelectStrategy {
           val nearDistance = calculatingDistance(nearAirport.longitudeDegr, nearAirport.longitudeMin, nearAirport.latitudeDegr, nearAirport.latitudeMin, currentAirport.longitudeDegr, currentAirport.longitudeMin, currentAirport.latitudeDegr, currentAirport.latitudeMin)
           val nearTime = calculatingTime(nearDistance)
           aircraft.update(near.aircraftCode, near.copy(cities = near.cities ++ Array(city)))
-        } else
-          punishCount += 1
+        }
       } else {
         //该d的o已经上飞机，更新为下飞机，完成任务，飞机更新位置
-        val existAircraft = aircraft.filter(t => t._2.cities.exists(c => c.id.equals(city.id)))
-        if (existAircraft.nonEmpty) {
-          val head = existAircraft.head
-          aircraft.update(head._1, head._2.copy(cities = head._2.cities ++ Array(city)))
-        } else
-          punishCount += 1
+//        val existAircraft = aircraft.filter(t => t._2.cities.exists(c => c.id.equals(city.id)))
+//        if (existAircraft.nonEmpty) {
+//          val head = existAircraft.head
+//          aircraft.update(head._1, head._2.copy(cities = head._2.cities ++ Array(city)))
+//        }
       }
     }
     var cost = 0.0
@@ -234,10 +235,7 @@ object SelectStrategy {
         total += (flyDis + disAF)
       }
     })
-    if (punishCount > 0)
-      cost = 0.0
-    else
-      cost = if (total != 0.0) 1 / total else 0.0
+    cost = if (total != 0.0) 1 / total else 0.0
     //cost = if (total != 0.0) 1/total else 0.0
     (cost, total)
   }
