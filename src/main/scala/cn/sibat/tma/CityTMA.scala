@@ -28,9 +28,11 @@ case class CityTMA(id: String, odType: String, direction: String, name: String, 
   * @param maxFlyTime   最大飞行时间
   * @param maxSeats     最大座位
   * @param location     所处位置
+  * @param useTime      已使用时间
+  * @param useDis       已使用距离
   * @param cities       乘客
   */
-case class Aircraft(aircraftCode: String, maxWeight: Double, oilWeight: Double, maxFlyTime: Int, maxSeats: Int, location: String, cities: Array[CityTMA])
+case class Aircraft(aircraftCode: String, maxWeight: Double, oilWeight: Double, maxFlyTime: Int, maxSeats: Int, location: String, useTime: Int, useDis: Double, cities: Array[CityTMA])
 
 /**
   * 酒店或者机场的信息

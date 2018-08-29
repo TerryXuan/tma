@@ -136,8 +136,104 @@ object SelectStrategy {
       val cityTMAs = indexs.map(i => globalCities(i))
 
       if (cityTMAs.head.direction.equals("Departing")) {
-        val sortedSet = cityTMAs.sortBy(_.legs)
-        val city = sortedSet.head
+        val sortedSetO = cityTMAs.filter(c => c.odType.equals("o")).sortBy(_.legs)
+        val sortedSetD = cityTMAs.filter(c => c.odType.equals("d")) //终点都是马内，所以不考虑
+        val startCities = sortedSetO.filter(c => c.legs == sortedSetO.head.legs) //起始的legs
+        //当前的任务起点集合，可能相同，可能不同，比如A的legs是1，B的legs是1，实际执行的时候A的legs为0
+        val currentAirports = startCities.map(c => airport(c.name)).distinct
+        //该任务的时间窗
+        val st = sdf.parse(startCities.maxBy(c => sdf.parse(c.startTime).getTime).startTime).getTime
+        val et = sdf.parse(startCities.minBy(c => sdf.parse(c.endTime).getTime).endTime).getTime
+
+        //过滤不支持该任务的飞机
+        val canUse = aircraft.filter(t => {
+          if (t._2.cities.isEmpty) { //空飞机
+            true
+          } else { //非空飞机
+            // 当前飞机有无任务
+            val cities1 = t._2.cities
+
+            //执行该任务所需的时间与距离
+            val lastAirport = airport(cities1.last.name)
+            val currentAirport = currentAirports.minBy(p => calculatingDistance(lastAirport.longitudeDegr, lastAirport.longitudeMin, lastAirport.latitudeDegr, lastAirport.latitudeMin, p.longitudeDegr, p.longitudeMin, p.latitudeDegr, p.latitudeMin))
+            val currentDis = calculatingDistance(lastAirport.longitudeDegr, lastAirport.longitudeMin, lastAirport.latitudeDegr, lastAirport.latitudeMin, currentAirport.longitudeDegr, currentAirport.longitudeMin, currentAirport.latitudeDegr, currentAirport.latitudeMin)
+            val currentTime = calculatingTime(currentDis)
+
+            // 当前飞机的位置，调度到该任务的位置和执行的时间，是否超过最大飞行时间
+            val exec = cities1.filter(c => c.odType.equals("d")).map(_.id)
+            val remain = cities1.filter(c => !exec.contains(c.id))
+            if (remain.isEmpty)
+              false
+            else {
+              val t1 = remain.maxBy(c => sdf.parse(c.startTime).getTime)
+              val t2 = remain.minBy(c => sdf.parse(c.endTime).getTime)
+              math.max(sdf.parse(t1.startTime).getTime, sdf.parse(t2.endTime).getTime) > math.min(st, et) && t._2.maxFlyTime > firstTime + flyTime + currentTime + city.time && t._2.maxSeats >= seats + city.seats
+            }
+          }
+        })
+
+        //符合任务的飞机，挑选距离最小的飞机
+        if (canUse.nonEmpty) {
+          val near = canUse.minBy(t => {
+            val a = airport(t._2.location)
+            calculatingDistance(a.longitudeDegr, a.longitudeMin, a.latitudeDegr, a.latitudeMin, currentAirport.longitudeDegr, currentAirport.longitudeMin, currentAirport.latitudeDegr, currentAirport.latitudeMin)
+          })._2
+          val nearAirport = airport(near.location)
+          val nearDistance = calculatingDistance(nearAirport.longitudeDegr, nearAirport.longitudeMin, nearAirport.latitudeDegr, nearAirport.latitudeMin, currentAirport.longitudeDegr, currentAirport.longitudeMin, currentAirport.latitudeDegr, currentAirport.latitudeMin)
+          val nearTime = calculatingTime(nearDistance)
+          aircraft.update(near.aircraftCode, near.copy(cities = near.cities ++ Array(city)))
+        }
+      } else {
+        //该d的o已经上飞机，更新为下飞机，完成任务，飞机更新位置
+        //        val existAircraft = aircraft.filter(t => t._2.cities.exists(c => c.id.equals(city.id)))
+        //        if (existAircraft.nonEmpty) {
+        //          val head = existAircraft.head
+        //          aircraft.update(head._1, head._2.copy(cities = head._2.cities ++ Array(city)))
+        //        }
+      }
+    }
+    var cost = 0.0
+    var total = 0.0
+
+    aircraft.foreach(t => {
+      val cityTMAs = t._2.cities
+      if (cityTMAs.nonEmpty) {
+        val aircraftAirport = airport(t._2.location)
+        val firstAirport = airport(cityTMAs.head.name)
+        val disAF = calculatingDistance(aircraftAirport.longitudeDegr, aircraftAirport.longitudeMin, aircraftAirport.latitudeDegr, aircraftAirport.latitudeMin, firstAirport.longitudeDegr, firstAirport.longitudeMin, firstAirport.latitudeDegr, firstAirport.latitudeMin)
+
+        // 已执行的飞行距离与时间
+        var flyDis = 0.0
+        for (i <- 0 until cityTMAs.length - 1) {
+          val i_airport = airport(cityTMAs(i).name)
+          val i_1_airport = airport(cityTMAs(i + 1).name)
+          val dis = calculatingDistance(i_airport.longitudeDegr, i_airport.longitudeMin, i_airport.latitudeDegr, i_airport.latitudeMin, i_1_airport.longitudeDegr, i_1_airport.longitudeMin, i_1_airport.latitudeDegr, i_1_airport.latitudeMin)
+          flyDis += dis
+        }
+        total += (flyDis + disAF)
+      }
+    })
+    cost = if (total != 0.0) 1 / total else 0.0
+    //cost = if (total != 0.0) 1/total else 0.0
+    (cost, total)
+  }
+
+  /**
+    * 城市的索引
+    *
+    * @param indexs indexs
+    */
+  def save(indexs: Array[Int]): Unit = {
+    val cities = indexs.map(globalCities(_))
+    val depart = cities.filter(c => c.direction.equals("Departing"))
+    val arrival = cities.filter(c => c.direction.equals("Arriving"))
+    val toDepartAircraft = aircraft.filter(t => !t._2.location.equals("MLE"))
+    val sdf = new SimpleDateFormat("H:mm:ss")
+    val hasAircraftAirport = toDepartAircraft.map(_._2.location)
+
+
+    for (city <- depart) {
+      if (city.odType.equals("o")) {
         //当前的任务
         val currentAirport = airport(city.name)
 
@@ -204,14 +300,16 @@ object SelectStrategy {
           val nearDistance = calculatingDistance(nearAirport.longitudeDegr, nearAirport.longitudeMin, nearAirport.latitudeDegr, nearAirport.latitudeMin, currentAirport.longitudeDegr, currentAirport.longitudeMin, currentAirport.latitudeDegr, currentAirport.latitudeMin)
           val nearTime = calculatingTime(nearDistance)
           aircraft.update(near.aircraftCode, near.copy(cities = near.cities ++ Array(city)))
-        }
+        } else
+          punishCount += 1
       } else {
         //该d的o已经上飞机，更新为下飞机，完成任务，飞机更新位置
-        //        val existAircraft = aircraft.filter(t => t._2.cities.exists(c => c.id.equals(city.id)))
-        //        if (existAircraft.nonEmpty) {
-        //          val head = existAircraft.head
-        //          aircraft.update(head._1, head._2.copy(cities = head._2.cities ++ Array(city)))
-        //        }
+        val existAircraft = aircraft.filter(t => t._2.cities.exists(c => c.id.equals(city.id)))
+        if (existAircraft.nonEmpty) {
+          val head = existAircraft.head
+          aircraft.update(head._1, head._2.copy(cities = head._2.cities ++ Array(city)))
+        } else
+          punishCount += 1
       }
     }
     var cost = 0.0
@@ -235,24 +333,11 @@ object SelectStrategy {
         total += (flyDis + disAF)
       }
     })
-    cost = if (total != 0.0) 1 / total else 0.0
+    if (punishCount > 0)
+      cost = -punishCount
+    else
+      cost = if (total != 0.0) 1 / total else -1.0
     //cost = if (total != 0.0) 1/total else 0.0
     (cost, total)
-  }
-
-  /**
-    * 城市的索引
-    *
-    * @param indexs indexs
-    */
-  def save(indexs: Array[Int]): Unit = {
-    val cities = indexs.map(globalCities(_))
-    val depart = cities.filter(c=>c.direction.equals("Departing"))
-    val arrival = cities.filter(c=>c.direction.equals("Arriving"))
-    val toDepartAircraft = aircraft.filter(!_._2.location.equals("MLE"))
-    for (craft <- toDepartAircraft){
-      val tasks = depart.filter(c => c.name.equals(craft._2.location))
-      craft._2.cities
-    }
   }
 }
